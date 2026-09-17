@@ -2,9 +2,22 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { SupabaseClient } from "@supabase/supabase-js";
 
+function getPublicSupabaseKey() {
+  return (
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    ""
+  );
+}
+
+/**
+ * Creates a request-scoped Supabase client that uses the signed-in user's
+ * cookie session. Intentionally never uses a service-role/secret key here:
+ * application requests must remain subject to Row Level Security.
+ */
 export function getSupabaseServerClient(): SupabaseClient | null {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  const supabaseKey = getPublicSupabaseKey();
 
   if (!supabaseUrl || !supabaseKey || supabaseUrl.includes("your-project")) {
     return null;
@@ -23,8 +36,8 @@ export function getSupabaseServerClient(): SupabaseClient | null {
             cookieStore.set(name, value, options)
           );
         } catch {
-          // The `setAll` method was called from a Server Component.
-          // This can be ignored if you have middleware refreshing sessions.
+          // Server Components cannot always write cookies. Route Handlers and
+          // middleware can; middleware also refreshes sessions proactively.
         }
       },
     },

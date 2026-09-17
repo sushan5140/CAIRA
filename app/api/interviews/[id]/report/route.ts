@@ -3,7 +3,7 @@ import { generateFinalReportWithGemini } from "@/lib/ai/gemini";
 import { getInterviewById, completeInterview } from "@/lib/supabase/service";
 
 export async function POST(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -14,22 +14,38 @@ export async function POST(
       return NextResponse.json({ error: "Interview not found" }, { status: 404 });
     }
 
-    const questions = interview.questions || [];
-    if (questions.length === 0) {
+    if (interview.status === "completed" && interview.report) {
+      return NextResponse.json({
+        success: true,
+        report: interview.report,
+        overall_score: interview.overall_score ?? interview.report.overall_score,
+        reused: true,
+      });
+    }
+
+    const questions = [...(interview.questions || [])].sort(
+      (a, b) => a.question_number - b.question_number
+    );
+    const targetTotal = Math.max(5, Math.min(10, interview.target_questions || 5));
+    const answered = questions.filter((q) => Boolean(q.answer_text?.trim()));
+
+    if (questions.length < targetTotal || answered.length < targetTotal) {
       return NextResponse.json(
-        { error: "Cannot generate report for interview with no questions" },
-        { status: 400 }
+        {
+          error: "Interview is not complete yet",
+          answered: answered.length,
+          required: targetTotal,
+        },
+        { status: 409 }
       );
     }
 
-    // Call Gemini to synthesize full interview report
     const report = await generateFinalReportWithGemini(
       interview.job_role,
       interview.extracted_skills,
-      questions
+      questions.slice(0, targetTotal)
     );
 
-    // Save report & mark interview completed
     await completeInterview(interviewId, report.overall_score, report);
 
     return NextResponse.json({
@@ -37,11 +53,8 @@ export async function POST(
       report,
       overall_score: report.overall_score,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error generating final report:", error);
-    return NextResponse.json(
-      { error: error?.message || "Failed to generate final report" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to generate final report" }, { status: 500 });
   }
 }

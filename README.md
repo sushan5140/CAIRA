@@ -1,207 +1,150 @@
 # CAIRA — AI-Powered Interview Readiness Platform
 
-<div align="center">
+CAIRA is a full-stack mock-interview platform for technical, behavioral, product, and leadership interview practice. It combines adaptive AI questioning, browser speech tools, webcam preview, turn-by-turn feedback, and final readiness reports.
 
-![CAIRA Banner](https://img.shields.io/badge/CAIRA-Interview%20AI-6366f1?style=for-the-badge&logo=openai&logoColor=white)
-![Next.js 14](https://img.shields.io/badge/Next.js-14.2.15-000000?style=for-the-badge&logo=next.js&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178c6?style=for-the-badge&logo=typescript&logoColor=white)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38bdf8?style=for-the-badge&logo=tailwind-css&logoColor=white)
-![Gemini AI](https://img.shields.io/badge/Google_Gemini-1.5_Flash-8e75ff?style=for-the-badge&logo=google&logoColor=white)
+## What CAIRA does
 
-<p align="center">
-  <strong>Master your high-stakes technical, behavioral, and leadership interviews through realistic, role-adaptive AI dialogue and real-time voice evaluation.</strong>
-</p>
+- Generates role-adaptive interview questions from a target role, resume, and optional job description.
+- Uses Google Gemini for skill extraction, adaptive follow-ups, answer evaluation, and final reports.
+- Defaults to `gemini-3.8-flash`; the model can be changed with `GEMINI_MODEL`.
+- Supports voice answers through the browser Web Speech API and manual text editing.
+- Provides a local webcam preview; camera video is not uploaded to CAIRA servers.
+- Scores practice answers with structured strengths, gaps, and STAR-oriented feedback.
+- Produces a final interview-practice readiness report and per-skill breakdown.
+- Runs in an offline/demo fallback mode when Gemini or Supabase are not configured.
 
-[Features](#-key-features) • [Tech Stack](#-tech-stack) • [Getting Started](#-getting-started) • [Environment Setup](#-environment-variables) • [Project Architecture](#-project-architecture)
+## Stack
 
-</div>
+- Next.js 14 App Router
+- React 18 + TypeScript
+- Tailwind CSS
+- Google Gemini via `@google/generative-ai`
+- Supabase Auth, Postgres, Storage, and Row Level Security
+- Web Speech API + Web Audio API
+- Lucide React
 
----
+> **Dependency note:** the current application remains on Next.js 14 for compatibility with the original implementation. Next.js 14 is no longer an LTS release in 2026, so a framework upgrade should be handled as a dedicated migration before long-term production deployment.
 
-## 🌟 Overview
+## Project structure
 
-**CAIRA** is an intelligent, full-featured interview readiness platform that puts candidates in a realistic mock interview room. Powered by Google Gemini AI, CAIRA dynamically introduces herself in a natural female voice, reads role-specific technical and behavioral questions aloud, transcribes candidate voice responses in real time, and evaluates performance using the STAR framework to generate comprehensive readiness analytics.
-
----
-
-## 🚀 Key Features
-
-### 🎙️ AI Interviewer with Natural Female Voice
-- **Automatic Self-Introduction**: CAIRA introduces herself upon entering the room, establishing the interview context and expectations for the target position.
-- **Dynamic Question Narration**: Reads questions aloud using Web Speech API synthesis tuned for clear, natural female pacing and pitch.
-- **Interactive Speech Visualizer**: Animated soundwaves and status indicators (`Introducing Interview...` ➔ `Reading Question` ➔ `Ready for Response`).
-- **Full Audio Controls**: One-click Replay Intro & Question, Pause, and Mute/Unmute audio toggles with multi-voice fallback support.
-
-### 🎤 Real-Time Voice Transcription
-- **Continuous Speech-to-Text**: Candidate answers are captured and transcribed smoothly without mid-sentence interruptions.
-- **Live Mic Audio Meter**: Real-time Web Audio API waveform visualizer confirms microphone input activity.
-- **Interim Speech Preview**: Displays live candidate speech chunks (`Hearing you: "..."`) in real time before finalizing into the response editor.
-- **Hybrid Input**: Candidates can speak naturally or seamlessly edit and refine their answers in the text box.
-
-### 📹 Live Local Camera Preview
-- **Candidate Webcam Interface**: In-browser video preview simulates the feel of live video interview calls.
-- **Privacy-Preserving**: All camera and microphone streams are processed purely locally within the candidate's browser — zero video is sent to external servers.
-
-### 🧠 Gemini-Powered Adaptive Rubric Evaluation
-- **STAR Methodology Scoring**: Evaluates each response against Situation, Task, Action, and Result principles.
-- **Turn-by-Turn Granular Feedback**: Immediate post-question scoring (0–10) detailing specific observed strengths and growth gaps.
-- **Role-Adaptive Follow-Ups**: Dynamically crafts follow-up questions tailored to candidate answers, target role, and seniority level.
-
-### 📊 Comprehensive Performance Report
-- **Overall Readiness Index (0–100)**: Holistic candidate readiness metric.
-- **Competency Breakdown**: Visual radar/bar metrics across System Architecture, Clean Code, Communication, and Problem Solving.
-- **Hiring Recommendation**: Actionable summary report with downloadable review data and interview history tracking.
-
-### ⚡ Seamless Offline Simulation Mode
-- Designed to run out of the box with zero external configuration required.
-- High-fidelity simulated evaluation mode is automatically active when live Gemini or Supabase API keys are not provided.
-
----
-
-## 🛠️ Tech Stack
-
-| Layer | Technology |
-| :--- | :--- |
-| **Framework** | [Next.js 14](https://nextjs.org/) (App Router, Server Components & Route Handlers) |
-| **Language** | [TypeScript 5](https://www.typescriptlang.org/) |
-| **Styling** | [Vanilla Tailwind CSS](https://tailwindcss.com/) with Glassmorphic Dark Theme |
-| **Icons** | [Lucide React](https://lucide.dev/) |
-| **AI Engine** | [Google Gemini 1.5 Flash](https://ai.google.dev/) via `@google/generative-ai` |
-| **Voice & Audio** | Browser [Web Speech API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API) & [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) |
-| **Database & Auth** | [Supabase](https://supabase.com/) (`@supabase/ssr` & `@supabase/supabase-js`) |
-| **Effects** | `canvas-confetti` for milestone celebrations |
-
----
-
-## 📂 Project Architecture
-
-```plaintext
+```text
 CAIRA/
 ├── app/
 │   ├── api/
-│   │   ├── interviews/          # Create, list, fetch, answer evaluation & report endpoints
-│   │   └── upload/resume/       # Resume upload & skill extraction handler
-│   ├── dashboard/               # Readiness history, average metrics, past sessions
+│   │   ├── interviews/
+│   │   │   ├── create/route.ts
+│   │   │   ├── [id]/answer/route.ts
+│   │   │   ├── [id]/question/route.ts
+│   │   │   └── [id]/report/route.ts
+│   │   └── upload/
+│   │       ├── resume/route.ts
+│   │       └── jd/route.ts
+│   ├── dashboard/
 │   ├── interview/
-│   │   ├── [id]/
-│   │   │   ├── page.tsx         # Live Mock Interview Room
-│   │   │   └── report/          # In-depth Performance & STAR Evaluation Report
-│   │   └── new/                 # Role configuration, resume & JD upload setup
-│   ├── globals.css              # Global styles & Tailwind imports
-│   ├── layout.tsx               # Root layout with Navbar, Ambient Glow, and Footer
-│   └── page.tsx                 # Modern Hero Landing Page with interactive preview
+│   ├── login/
+│   ├── signup/
+│   └── page.tsx
 ├── components/
-│   ├── answer-input.tsx         # Answer editor with mic recorder & turn score feedback
-│   ├── camera-preview.tsx       # Local webcam preview with mic audio analyser
-│   ├── footer.tsx               # Multi-column platform footer with status & specs
-│   ├── interviewer-voice.tsx    # Female voice TTS, speech visualizer & audio controls
-│   ├── mic-recorder.tsx         # Web Speech API speech-to-text with continuous transcribing
-│   ├── navbar.tsx               # Navigation bar with role quicklinks & user status
-│   ├── question-card.tsx        # Question card with progress bar, type & skill badges
-│   ├── report-summary.tsx       # Readiness score card, competency charts, strengths & gaps
-│   └── score-badge.tsx          # Dynamic colored score pill
 ├── lib/
 │   ├── ai/
-│   │   └── gemini.ts            # Gemini 1.5 client, prompt rubrics, and offline simulation fallback
 │   └── supabase/
-│       ├── client.ts            # Browser Supabase client
-│       ├── server.ts            # Server-side Supabase client
-│       └── service.ts           # Data access layer & in-memory persistence store
-└── types/
-    └── interview.ts             # TypeScript interfaces for questions, evaluations & reports
+├── supabase/migrations/
+├── types/
+├── middleware.ts
+└── .github/workflows/ci.yml
 ```
 
----
+## Local setup
 
-## 💻 Getting Started
+### Requirements
 
-### Prerequisites
-- [Node.js](https://nodejs.org/) v18.17.0 or later
-- npm v9 or later
+- Node.js 22 recommended
+- npm
 
-### Installation
+### Install
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/stutitiwari23/CAIRA.git
-   cd CAIRA
-   ```
+```bash
+git clone https://github.com/stutitiwari23/CAIRA.git
+cd CAIRA
+npm install
+cp .env.example .env.local
+npm run dev
+```
 
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+Then open `http://localhost:3000`.
 
-3. **Configure environment variables (Optional):**
-   ```bash
-   cp .env.example .env.local
-   ```
-   *(If left empty, CAIRA automatically runs in high-fidelity offline simulation mode).*
+CAIRA can still run without live credentials; it falls back to its local demo/simulation path.
 
-4. **Start the local development server:**
-   ```bash
-   npm run dev
-   ```
-
-5. **Open the application:**
-   Navigate to [http://localhost:3000](http://localhost:3000) in your browser.
-
----
-
-## 🔑 Environment Variables
-
-To connect live Google Gemini and Supabase services, add your credentials in `.env.local`:
+## Environment variables
 
 ```env
-# Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=your-supabase-project-url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your-key
 
-# Google Gemini AI API
-GEMINI_API_KEY=your-google-gemini-api-key
+# Legacy projects may use the anon key instead of the publishable key.
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+
+GEMINI_API_KEY=your-gemini-api-key
+GEMINI_MODEL=gemini-3.8-flash
 ```
 
-> **Note**: CAIRA is fully self-contained. When environment variables are omitted or invalid, the platform runs seamlessly with full interactive dialogue, voice recognition, and STAR evaluations.
+### Important security rule
 
----
+Do **not** put a Supabase service-role/secret key into CAIRA's normal application environment. User-facing server requests use the signed-in user's cookie session and remain subject to Row Level Security.
 
-## 🎯 Supported Interview Practice Tracks
+## Supabase setup
 
-- **Senior Full-Stack Engineer** (Next.js, TypeScript, Architecture, Databases)
-- **Frontend & React Architect** (Component Design, Performance, State Management)
-- **Backend & Distributed Systems** (Microservices, Concurrency, API Design)
-- **Machine Learning & AI Engineer** (Model Lifecycle, LLM Orchestration, Pipelines)
-- **Engineering Manager / Tech Lead** (Team Dynamics, Conflict Resolution, Delivery)
-- **Technical Product Manager** (Roadmapping, Stakeholder Alignment, Metrics)
+Apply the SQL files in `supabase/migrations/` to the Supabase project in order.
 
----
+The hardening migration:
 
-## 🛡️ Privacy & Local Execution
+- persists `target_questions` for 5–10 question sessions;
+- explicitly grants the authenticated Data API permissions CAIRA needs;
+- scopes interview/profile/question access to the signed-in owner through RLS;
+- scopes private Storage uploads to `<auth.uid()>/...` folders;
+- locks down the profile-creation trigger helper.
 
-- **Microphone & Camera**: Audio input for speech-to-text and video streams run locally in the candidate's browser.
-- **Audio Storage**: No candidate voice audio recordings are stored on server disks.
-- **Session Privacy**: Mock sessions can be practiced with complete anonymity.
+Resume and job-description buckets are private. Upload handlers use the authenticated user's folder and do not use `upsert`.
 
----
+## Interview lifecycle
 
-## 🤝 Contributing
+1. Candidate chooses a target role and optional resume/JD context.
+2. CAIRA extracts target skills and creates an interview session.
+3. Question 1 is generated.
+4. Each submitted answer is evaluated once.
+5. Follow-up generation reuses an existing unanswered question on retries instead of creating duplicates.
+6. A report can only be generated after all required questions are answered.
+7. Completed reports are reused rather than regenerated on repeated requests.
 
-Contributions, feature requests, and bug reports are welcome!
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+## Privacy
 
----
+- Webcam video stays in the browser preview.
+- CAIRA does not intentionally store raw microphone recordings.
+- Speech-to-text depends on browser Web Speech API behavior and browser/vendor support.
+- When Supabase is enabled, database access is protected by Row Level Security.
+- Uploaded resume/JD files are placed in private per-user storage paths.
 
-## 📄 License
+## Verification
 
-Distributed under the MIT License. See `LICENSE` for more information.
+The repository includes GitHub Actions CI. Every push/PR runs:
 
----
+```bash
+npm ci
+npm run typecheck
+npm run build
+```
 
-<div align="center">
-  <sub>Built with ❤️ using Next.js, Google Gemini AI, and Web Speech API.</sub>
-</div>
+This keeps compiler errors and broken production builds from silently reaching `main`.
+
+## Development scripts
+
+```bash
+npm run dev
+npm run typecheck
+npm run build
+npm run start
+```
+
+## License
+
+MIT — see `LICENSE`.

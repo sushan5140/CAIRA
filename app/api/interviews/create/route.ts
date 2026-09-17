@@ -2,38 +2,59 @@ import { NextRequest, NextResponse } from "next/server";
 import { extractSkillsWithGemini, generateQuestionWithGemini } from "@/lib/ai/gemini";
 import { createInterview, saveQuestion } from "@/lib/supabase/service";
 
+const MAX_ROLE_CHARS = 160;
+const MAX_TEXT_CHARS = 40000;
+const MAX_BASE64_CHARS = 14_000_000;
+
+function optionalText(value: unknown, maxLength: number) {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.length > maxLength) throw new Error("INPUT_TOO_LARGE");
+  return trimmed;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { jobRole, jdText, resumeText, resumePdfBase64, targetQuestions = 5 } = body;
+    const jobRole = typeof body.jobRole === "string" ? body.jobRole.trim() : "";
 
-    if (!jobRole || typeof jobRole !== "string" || !jobRole.trim()) {
+    if (!jobRole) {
       return NextResponse.json({ error: "Job role is required" }, { status: 400 });
     }
 
-    // 1. Extract required skills, nice-to-haves, seniority, and focus areas with Gemini
+    if (jobRole.length > MAX_ROLE_CHARS) {
+      return NextResponse.json({ error: "Job role is too long" }, { status: 413 });
+    }
+
+    const jdText = optionalText(body.jdText, MAX_TEXT_CHARS);
+    const resumeText = optionalText(body.resumeText, MAX_TEXT_CHARS);
+    const resumePdfBase64 = optionalText(body.resumePdfBase64, MAX_BASE64_CHARS);
+    const parsedTarget = Number(body.targetQuestions);
+    const targetQuestions = Number.isFinite(parsedTarget)
+      ? Math.max(5, Math.min(10, Math.round(parsedTarget)))
+      : 5;
+
     const extractedSkills = await extractSkillsWithGemini(
-      jobRole.trim(),
+      jobRole,
       jdText,
       resumeText,
       resumePdfBase64
     );
 
-    // 2. Create the interview record
     const interview = await createInterview({
-      jobRole: jobRole.trim(),
-      jdText: jdText || undefined,
+      jobRole,
+      jdText,
       extractedSkills,
-      targetQuestions: Math.max(5, Math.min(10, Number(targetQuestions) || 5)),
+      targetQuestions,
     });
 
-    // 3. Pre-generate Question 1
     const q1Result = await generateQuestionWithGemini(
       interview.job_role,
       extractedSkills,
       [],
       1,
-      interview.target_questions || 5
+      interview.target_questions || targetQuestions
     );
 
     const question1 = await saveQuestion({
@@ -46,16 +67,20 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      interview: {
-        ...interview,
-        questions: [question1],
-      },
+      interview: { ...interview, questions: [question1] },
       question: question1,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === "INPUT_TOO_LARGE") {
+      return NextResponse.json(
+        { error: "Resume or job-description input is too large" },
+        { status: 413 }
+      );
+    }
+
     console.error("Error in /api/interviews/create:", error);
     return NextResponse.json(
-      { error: error?.message || "Failed to create interview and extract skills" },
+      { error: "Failed to create interview and extract skills" },
       { status: 500 }
     );
   }
