@@ -34,7 +34,7 @@ export function Footer() {
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
               </span>
               <span className="text-[11px] font-medium text-emerald-400/90">
-                All AI Evaluation Systems Operational
+                Adaptive evaluation + offline fallback ready
               </span>
             </div>
           </div>
@@ -133,7 +133,7 @@ export function Footer() {
               </li>
               <li className="flex items-center gap-1.5 text-slate-400">
                 <Cpu className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                <span>Google Gemini 1.5 Calibration</span>
+                <span>Gemini 3.8 Default • Configurable</span>
               </li>
               <li className="flex items-center gap-1.5 text-slate-400">
                 <Terminal className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
@@ -153,7 +153,7 @@ export function Footer() {
 
           <div className="flex items-center gap-4 text-slate-400">
             <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-[10px] text-slate-400">
-              Gemini 1.5 Flash
+              Gemini 3.8 Default
             </span>
             <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-[10px] text-slate-400">
               Web Speech API
