@@ -4,12 +4,20 @@ import "./globals.css";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
-  title: "CAIRA — AI-Powered Interview Readiness Platform",
-  description: "Conduct realistic, role-specific mock interviews powered by Gemini AI with live camera preview, speech recognition, adaptive follow-ups, and in-depth readiness scoring.",
-  keywords: ["mock interview", "interview prep", "AI interviewer", "Gemini AI", "career readiness", "technical interview"],
+  title: "CAIRA — Interactive AI Interview Practice",
+  description:
+    "Practice realistic, role-specific interviews with adaptive AI questions, voice and camera support, turn-by-turn coaching, and readiness reports.",
+  keywords: [
+    "mock interview",
+    "interview prep",
+    "AI interviewer",
+    "Gemini AI",
+    "career readiness",
+    "technical interview",
+  ],
   authors: [{ name: "CAIRA Team" }],
 };
 
@@ -19,21 +27,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${inter.className} bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-indigo-500/30 selection:text-indigo-200`}>
-        {/* Subtle background ambient gradients */}
-        <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-          <div className="absolute -top-40 -left-40 w-96 h-96 bg-indigo-600/10 rounded-full blur-[120px]" />
-          <div className="absolute top-1/3 -right-40 w-[30rem] h-[30rem] bg-emerald-600/10 rounded-full blur-[140px]" />
-          <div className="absolute -bottom-20 left-1/3 w-80 h-80 bg-blue-600/10 rounded-full blur-[120px]" />
+    <html lang="en">
+      <body className={`${inter.className} min-h-screen text-slate-900 pb-20 md:pb-0`}>
+        <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden">
+          <div className="absolute inset-0 paper-grid opacity-45" />
+          <div className="absolute -top-24 left-[8%] h-72 w-72 rounded-full bg-indigo-300/10 blur-3xl" />
+          <div className="absolute top-[18%] -right-24 h-80 w-80 rounded-full bg-emerald-300/10 blur-3xl" />
         </div>
 
         <Navbar />
-
-        <main className="flex-1 relative z-10">
-          {children}
-        </main>
-
+        <main className="relative z-10 min-h-[calc(100dvh-76px)]">{children}</main>
         <Footer />
       </body>
     </html>
