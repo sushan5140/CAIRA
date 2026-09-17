@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Mic, MicOff, Keyboard, Volume2, Sparkles, AlertCircle, RefreshCw } from "lucide-react";
+import { Mic, MicOff, Keyboard, Volume2, Sparkles, AlertCircle } from "lucide-react";
 
 interface MicRecorderProps {
   onTranscriptChange: (transcript: string) => void;
@@ -20,20 +20,16 @@ export function MicRecorder({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [audioLevel, setAudioLevel] = useState(0);
 
-  // References to avoid stale closures in callbacks
   const recognitionRef = useRef<any>(null);
   const isListeningRef = useRef(false);
   const baseTranscriptRef = useRef(currentTranscript);
   const accumulatedFinalRef = useRef("");
   const onTranscriptChangeRef = useRef(onTranscriptChange);
   const currentTranscriptRef = useRef(currentTranscript);
-
-  // Audio analyser for real-time mic visual feedback
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioStreamRef = useRef<MediaStream | null>(null);
   const animFrameRef = useRef<number | null>(null);
 
-  // Keep refs synchronized with latest props
   useEffect(() => {
     onTranscriptChangeRef.current = onTranscriptChange;
   }, [onTranscriptChange]);
@@ -42,54 +38,15 @@ export function MicRecorder({
     currentTranscriptRef.current = currentTranscript;
   }, [currentTranscript]);
 
-  // Check Web Speech API availability on mount
   useEffect(() => {
     if (typeof window !== "undefined") {
       const SpeechRecognition =
         (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        setIsSupported(false);
-      }
+      if (!SpeechRecognition) setIsSupported(false);
     }
   }, []);
 
-  // Setup Audio Analyser for visual speech feedback
-  const startAudioFeedback = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      audioStreamRef.current = stream;
-
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioCtx) {
-        const ctx = new AudioCtx();
-        audioContextRef.current = ctx;
-        const analyser = ctx.createAnalyser();
-        analyser.fftSize = 64;
-        const source = ctx.createMediaStreamSource(stream);
-        source.connect(analyser);
-
-        const dataArray = new Uint8Array(analyser.frequencyBinCount);
-
-        const updateMeter = () => {
-          if (!isListeningRef.current) return;
-          analyser.getByteFrequencyData(dataArray);
-          let sum = 0;
-          for (let i = 0; i < dataArray.length; i++) {
-            sum += dataArray[i];
-          }
-          const avg = sum / dataArray.length;
-          setAudioLevel(Math.min(100, Math.round((avg / 128) * 100)));
-          animFrameRef.current = requestAnimationFrame(updateMeter);
-        };
-
-        animFrameRef.current = requestAnimationFrame(updateMeter);
-      }
-    } catch (err) {
-      console.warn("Could not start audio meter:", err);
-    }
-  };
-
-  const stopAudioFeedback = () => {
+  const stopAudioFeedback = useCallback(() => {
     if (animFrameRef.current) {
       cancelAnimationFrame(animFrameRef.current);
       animFrameRef.current = null;
@@ -97,17 +54,49 @@ export function MicRecorder({
     if (audioContextRef.current) {
       try {
         audioContextRef.current.close();
-      } catch (_) {}
+      } catch {}
       audioContextRef.current = null;
     }
     if (audioStreamRef.current) {
-      audioStreamRef.current.getTracks().forEach((t) => t.stop());
+      audioStreamRef.current.getTracks().forEach((track) => track.stop());
       audioStreamRef.current = null;
     }
     setAudioLevel(0);
+  }, []);
+
+  const startAudioFeedback = async () => {
+    stopAudioFeedback();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioStreamRef.current = stream;
+
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+
+      const ctx = new AudioCtx();
+      audioContextRef.current = ctx;
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 64;
+      const source = ctx.createMediaStreamSource(stream);
+      source.connect(analyser);
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+      const updateMeter = () => {
+        if (!isListeningRef.current) return;
+        analyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+        const avg = sum / dataArray.length;
+        setAudioLevel(Math.min(100, Math.round((avg / 128) * 100)));
+        animFrameRef.current = requestAnimationFrame(updateMeter);
+      };
+
+      animFrameRef.current = requestAnimationFrame(updateMeter);
+    } catch (err) {
+      console.warn("Could not start audio meter:", err);
+    }
   };
 
-  // Start Speech Recognition
   const startListening = async () => {
     setErrorMessage(null);
     const SpeechRecognition =
@@ -121,27 +110,28 @@ export function MicRecorder({
     }
 
     try {
-      // 1. Request microphone permission explicitly
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      if (navigator.mediaDevices?.getUserMedia) {
         try {
-          await navigator.mediaDevices.getUserMedia({ audio: true });
+          const permissionStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          permissionStream.getTracks().forEach((track) => track.stop());
         } catch (permErr: any) {
-          if (permErr.name === "NotAllowedError" || permErr.name === "PermissionDeniedError") {
-            setErrorMessage("Microphone access denied. Please allow microphone permissions in your browser address bar.");
+          if (permErr?.name === "NotAllowedError" || permErr?.name === "PermissionDeniedError") {
+            setErrorMessage(
+              "Microphone access denied. Please allow microphone permissions in your browser address bar."
+            );
             return;
           }
+          throw permErr;
         }
       }
 
-      // 2. Abort any previous running instance cleanly
       if (recognitionRef.current) {
         try {
           recognitionRef.current.abort();
-        } catch (_) {}
+        } catch {}
         recognitionRef.current = null;
       }
 
-      // 3. Capture baseline transcript before this voice session
       baseTranscriptRef.current = currentTranscriptRef.current;
       accumulatedFinalRef.current = "";
       setInterimText("");
@@ -163,54 +153,46 @@ export function MicRecorder({
         let newFinalChunk = "";
 
         for (let i = event.resultIndex; i < event.results.length; ++i) {
-          const res = event.results[i];
-          const text = res[0]?.transcript || "";
-          if (res.isFinal) {
-            newFinalChunk += text + " ";
-          } else {
-            currentInterim += text;
-          }
+          const result = event.results[i];
+          const text = result[0]?.transcript || "";
+          if (result.isFinal) newFinalChunk += `${text} `;
+          else currentInterim += text;
         }
 
         if (newFinalChunk) {
           accumulatedFinalRef.current += newFinalChunk;
-          const base = baseTranscriptRef.current ? baseTranscriptRef.current.trim() : "";
-          const full = (base ? base + " " : "") + accumulatedFinalRef.current.trim();
+          const base = baseTranscriptRef.current.trim();
+          const full = `${base ? `${base} ` : ""}${accumulatedFinalRef.current.trim()}`;
           onTranscriptChangeRef.current(full);
         }
-
         setInterimText(currentInterim);
       };
 
       recognition.onerror = (event: any) => {
         console.warn("Speech recognition error:", event.error);
-        if (event.error === "no-speech") {
-          // Standard browser silence event - keep listening
-          return;
-        }
+        if (event.error === "no-speech" || event.error === "aborted") return;
         if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-          setErrorMessage("Microphone access denied. Please click the lock or camera/mic icon in your browser URL bar to allow microphone access.");
+          setErrorMessage(
+            "Microphone access denied. Please allow microphone permissions from your browser's site controls."
+          );
           isListeningRef.current = false;
           setIsListening(false);
           stopAudioFeedback();
           return;
         }
-        if (event.error === "aborted") {
-          return;
-        }
+        setErrorMessage("Voice recognition stopped unexpectedly. You can retry or type your answer.");
       };
 
       recognition.onend = () => {
-        // If user didn't explicitly stop, auto-restart to maintain continuous listening
         if (isListeningRef.current) {
           try {
             recognition.start();
-          } catch (e) {
+          } catch {
             setTimeout(() => {
               if (isListeningRef.current && recognitionRef.current) {
                 try {
                   recognitionRef.current.start();
-                } catch (_) {}
+                } catch {}
               }
             }, 250);
           }
@@ -222,23 +204,19 @@ export function MicRecorder({
       };
 
       recognitionRef.current = recognition;
-      recognition.start();
-
-      setIsListening(true);
       isListeningRef.current = true;
-
-      // Start audio feedback meter
-      startAudioFeedback();
-    } catch (err: any) {
+      setIsListening(true);
+      recognition.start();
+      await startAudioFeedback();
+    } catch (err: unknown) {
       console.error("Could not start speech recognition:", err);
-      setErrorMessage(err?.message || "Failed to initialize microphone.");
+      setErrorMessage(err instanceof Error ? err.message : "Failed to initialize microphone.");
       setIsListening(false);
       isListeningRef.current = false;
       stopAudioFeedback();
     }
   };
 
-  // Stop Speech Recognition
   const stopListening = useCallback(() => {
     isListeningRef.current = false;
     setIsListening(false);
@@ -248,35 +226,30 @@ export function MicRecorder({
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
-      } catch (_) {}
+      } catch {}
       recognitionRef.current = null;
     }
-  }, []);
+  }, [stopAudioFeedback]);
 
   const toggleListening = () => {
-    if (isListening) {
-      stopListening();
-    } else {
-      startListening();
-    }
+    if (isListening) stopListening();
+    else startListening();
   };
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       isListeningRef.current = false;
       if (recognitionRef.current) {
         try {
           recognitionRef.current.abort();
-        } catch (_) {}
+        } catch {}
       }
       stopAudioFeedback();
     };
-  }, []);
+  }, [stopAudioFeedback]);
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Control bar */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           {isSupported ? (
@@ -298,37 +271,29 @@ export function MicRecorder({
               ) : (
                 <>
                   <Mic className="w-4 h-4 text-indigo-400" />
-                  <span>Answer with Voice (Start Recording)</span>
+                  <span>Answer with Voice</span>
                 </>
               )}
             </button>
           ) : (
             <div className="flex items-center gap-1.5 text-xs text-amber-400/90 bg-amber-950/40 px-3 py-1.5 rounded-lg border border-amber-800/40">
               <Keyboard className="w-3.5 h-3.5" />
-              <span>Voice recognition unavailable in this browser. Please type your answer directly below.</span>
+              <span>Voice recognition is unavailable in this browser. Type your answer below.</span>
             </div>
           )}
 
-          {/* Active Listening indicator & Mic volume meter */}
           {isListening && (
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-emerald-400 shadow-sm">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
               <span>Listening & transcribing...</span>
-
-              {/* Dynamic waveform levels */}
               <div className="flex items-center gap-0.5 ml-1 h-3.5">
-                <span
-                  className="w-1 bg-emerald-400 rounded-full transition-all duration-75"
-                  style={{ height: `${Math.max(3, (audioLevel / 100) * 14)}px` }}
-                />
-                <span
-                  className="w-1 bg-emerald-400 rounded-full transition-all duration-75"
-                  style={{ height: `${Math.max(5, (audioLevel / 100) * 18)}px` }}
-                />
-                <span
-                  className="w-1 bg-emerald-300 rounded-full transition-all duration-75"
-                  style={{ height: `${Math.max(3, (audioLevel / 100) * 12)}px` }}
-                />
+                {[14, 18, 12].map((maxHeight, index) => (
+                  <span
+                    key={index}
+                    className="w-1 bg-emerald-400 rounded-full transition-all duration-75"
+                    style={{ height: `${Math.max(3, (audioLevel / 100) * maxHeight)}px` }}
+                  />
+                ))}
               </div>
             </div>
           )}
@@ -336,11 +301,10 @@ export function MicRecorder({
 
         <div className="text-xs text-slate-400 flex items-center gap-1.5">
           <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-          <span>Speak naturally — voice transcribes in real time below</span>
+          <span>Speak naturally — your transcript remains editable</span>
         </div>
       </div>
 
-      {/* Error message / permission guidance */}
       {errorMessage && (
         <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-800/60 text-rose-300 text-xs flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
@@ -357,7 +321,6 @@ export function MicRecorder({
         </div>
       )}
 
-      {/* Real-time live speech feedback pill */}
       {isListening && interimText && (
         <div className="p-3 rounded-xl bg-indigo-950/50 border border-indigo-500/30 text-xs text-indigo-200 flex items-start gap-2 backdrop-blur-sm animate-in fade-in duration-150">
           <Volume2 className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5 animate-pulse" />
