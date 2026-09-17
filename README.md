@@ -15,15 +15,15 @@ CAIRA is a full-stack mock-interview platform for technical, behavioral, product
 
 ## Stack
 
-- Next.js 14 App Router
-- React 18 + TypeScript
+- Next.js 16.3 App Router (Active LTS)
+- React 19.2 + TypeScript
 - Tailwind CSS
 - Google Gemini via `@google/generative-ai`
 - Supabase Auth, Postgres, Storage, and Row Level Security
 - Web Speech API + Web Audio API
 - Lucide React
 
-> **Dependency note:** the current application remains on Next.js 14 for compatibility with the original implementation. Next.js 14 is no longer an LTS release in 2026, so a framework upgrade should be handled as a dedicated migration before long-term production deployment.
+CAIRA is pinned to the security-patched Next.js `16.3.3` release rather than the unsupported Next.js 14 baseline from the original implementation.
 
 ## Project structure
 
@@ -50,7 +50,7 @@ CAIRA/
 │   └── supabase/
 ├── supabase/migrations/
 ├── types/
-├── middleware.ts
+├── proxy.ts
 └── .github/workflows/ci.yml
 ```
 
@@ -58,7 +58,7 @@ CAIRA/
 
 ### Requirements
 
-- Node.js 22 recommended
+- Node.js 20.9 or newer; Node.js 22 recommended
 - npm
 
 ### Install
@@ -106,6 +106,17 @@ The hardening migration:
 
 Resume and job-description buckets are private. Upload handlers use the authenticated user's folder and do not use `upsert`.
 
+## Next.js 16 migration notes
+
+The framework migration includes the breaking changes required by Next.js 16:
+
+- request-time `cookies()` access is awaited;
+- dynamic Route Handler `params` are awaited;
+- client dynamic interview pages read route parameters with `useParams()`;
+- the deprecated `middleware.ts` convention is replaced with `proxy.ts`;
+- React and React DOM are upgraded to 19.2;
+- the lockfile is regenerated against the pinned framework versions.
+
 ## Interview lifecycle
 
 1. Candidate chooses a target role and optional resume/JD context.
@@ -126,7 +137,7 @@ Resume and job-description buckets are private. Upload handlers use the authenti
 
 ## Verification
 
-The repository includes GitHub Actions CI. Every push/PR runs:
+The repository includes GitHub Actions CI. Every relevant push/PR runs:
 
 ```bash
 npm ci

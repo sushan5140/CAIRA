@@ -127,7 +127,7 @@ if (!localStore.interviews.has(sampleId)) {
 }
 
 async function getAuthenticatedContext() {
-  const supabase = getSupabaseServerClient();
+  const supabase = await getSupabaseServerClient();
   if (!supabase) return null;
 
   const {

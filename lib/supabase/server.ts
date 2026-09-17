@@ -15,7 +15,7 @@ function getPublicSupabaseKey() {
  * cookie session. Intentionally never uses a service-role/secret key here:
  * application requests must remain subject to Row Level Security.
  */
-export function getSupabaseServerClient(): SupabaseClient | null {
+export async function getSupabaseServerClient(): Promise<SupabaseClient | null> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
   const supabaseKey = getPublicSupabaseKey();
 
@@ -23,7 +23,7 @@ export function getSupabaseServerClient(): SupabaseClient | null {
     return null;
   }
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
 
   return createServerClient(supabaseUrl, supabaseKey, {
     cookies: {
@@ -37,7 +37,7 @@ export function getSupabaseServerClient(): SupabaseClient | null {
           );
         } catch {
           // Server Components cannot always write cookies. Route Handlers and
-          // middleware can; middleware also refreshes sessions proactively.
+          // proxy can; proxy also refreshes sessions proactively.
         }
       },
     },

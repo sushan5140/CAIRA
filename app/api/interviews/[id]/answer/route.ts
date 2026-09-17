@@ -6,10 +6,10 @@ const MAX_ANSWER_CHARS = 12000;
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const interviewId = params.id;
+    const { id: interviewId } = await params;
     const body = await req.json();
     const questionId = typeof body.questionId === "string" ? body.questionId : "";
     const answerText = typeof body.answerText === "string" ? body.answerText.trim() : "";

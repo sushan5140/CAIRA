@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { CameraPreview } from "@/components/camera-preview";
 import { QuestionCard } from "@/components/question-card";
 import { AnswerInput } from "@/components/answer-input";
@@ -17,7 +17,8 @@ import {
 } from "lucide-react";
 import type { Interview, InterviewQuestion, AnswerEvaluationResult } from "@/types/interview";
 
-export default function InterviewRoomPage({ params }: { params: { id: string } }) {
+export default function InterviewRoomPage() {
+  const params = useParams<{ id: string }>();
   const interviewId = params.id;
   const router = useRouter();
 
