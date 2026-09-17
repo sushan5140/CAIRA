@@ -1,0 +1,145 @@
+name: CAIRA Production E2E
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install Selenium
+        run: pip install selenium==4.35.0
+
+      - name: Run public production journey
+        env:
+          CAIRA_URL: https://caira-eta.vercel.app
+        run: |
+          python - <<'PY'
+          import os
+          from selenium import webdriver
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.support.ui import WebDriverWait
+          from selenium.webdriver.support import expected_conditions as EC
+          from selenium.webdriver.chrome.options import Options
+
+          base = os.environ["CAIRA_URL"].rstrip("/")
+          options = Options()
+          options.add_argument("--headless=new")
+          options.add_argument("--no-sandbox")
+          options.add_argument("--disable-dev-shm-usage")
+          options.add_argument("--window-size=1440,1200")
+          options.add_argument("--use-fake-ui-for-media-stream")
+          options.add_argument("--use-fake-device-for-media-stream")
+          options.add_argument("--autoplay-policy=no-user-gesture-required")
+          options.set_capability("goog:loggingPrefs", {"browser": "ALL"})
+
+          driver = webdriver.Chrome(options=options)
+          wait = WebDriverWait(driver, 35)
+
+          def click_text(text):
+              element = wait.until(
+                  EC.element_to_be_clickable(
+                      (By.XPATH, f"//button[contains(normalize-space(.), {text!r})] | //a[contains(normalize-space(.), {text!r})]")
+                  )
+              )
+              driver.execute_script("arguments[0].scrollIntoView({block:'center'});", element)
+              element.click()
+              return element
+
+          try:
+              print("[1/7] Homepage")
+              driver.get(base + "/")
+              wait.until(EC.title_contains("CAIRA"))
+              source = driver.page_source
+              assert "Gemini 1.5" not in source, "Stale Gemini 1.5 copy is still visible"
+              assert "Gemini 3.8" in source, "Expected current Gemini default copy is missing"
+
+              print("[2/7] Guest mode")
+              driver.get(base + "/login")
+              click_text("Continue as Guest")
+              wait.until(lambda d: "/dashboard" in d.current_url)
+
+              print("[3/7] Interview setup")
+              driver.get(base + "/interview/new")
+              role = wait.until(EC.visibility_of_element_located((By.ID, "jobRole")))
+              role.clear()
+              role.send_keys("Senior Full-Stack Engineer")
+              click_text("Enter Interview Room")
+              wait.until(lambda d: "/interview/caira-" in d.current_url and "/report" not in d.current_url)
+              print("Interview URL:", driver.current_url)
+
+              answer = (
+                  "In a recent project I first clarified the user impact and constraints, then split the problem into measurable steps. "
+                  "I implemented the highest-risk part behind a safe rollout, monitored latency and error rates, documented trade-offs, "
+                  "and used the results to improve the next iteration with the team."
+              )
+
+              print("[4/7] Five-question interview")
+              for question_number in range(1, 6):
+                  wait.until(
+                      EC.visibility_of_element_located(
+                          (By.XPATH, f"//*[contains(normalize-space(.), 'Question {question_number} of 5')]")
+                      )
+                  )
+                  textarea = wait.until(EC.visibility_of_element_located((By.TAG_NAME, "textarea")))
+                  textarea.clear()
+                  textarea.send_keys(answer + f" This was my response for question {question_number}.")
+                  click_text("Submit Answer")
+                  wait.until(EC.visibility_of_element_located((By.XPATH, "//*[contains(normalize-space(.), 'Turn Evaluation')]")))
+                  print(f"Question {question_number} evaluated")
+
+                  if question_number < 5:
+                      click_text("Next Question")
+                      next_number = question_number + 1
+                      wait.until(
+                          EC.visibility_of_element_located(
+                              (By.XPATH, f"//*[contains(normalize-space(.), 'Question {next_number} of 5')]")
+                          )
+                      )
+                  else:
+                      click_text("Complete Interview & View Report")
+
+              print("[5/7] Final report")
+              wait.until(lambda d: "/report" in d.current_url)
+              wait.until(EC.visibility_of_element_located((By.XPATH, "//*[contains(normalize-space(.), 'Overall Readiness Score')]")))
+              wait.until(EC.visibility_of_element_located((By.XPATH, "//*[contains(normalize-space(.), 'Interview Report:')]")))
+
+              print("[6/7] Dashboard persistence")
+              driver.get(base + "/dashboard")
+              wait.until(EC.visibility_of_element_located((By.XPATH, "//*[contains(normalize-space(.), 'Completed')]")))
+              wait.until(EC.visibility_of_element_located((By.XPATH, "//*[contains(normalize-space(.), 'This device')]")))
+
+              print("[7/7] Browser console")
+              severe = []
+              for entry in driver.get_log("browser"):
+                  if entry.get("level") == "SEVERE":
+                      message = entry.get("message", "")
+                      if "favicon" not in message.lower():
+                          severe.append(message)
+              if severe:
+                  print("Severe browser console entries:")
+                  for item in severe:
+                      print(item)
+                  raise AssertionError("Severe browser console errors detected")
+
+              print("CAIRA LIVE E2E PASSED")
+          except Exception:
+              driver.save_screenshot("/tmp/caira-e2e-failure.png")
+              print("Current URL:", driver.current_url)
+              print("Page title:", driver.title)
+              raise
+          finally:
+              driver.quit()
+          PY
