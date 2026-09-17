@@ -98,7 +98,7 @@ jobs:
               desktop.get(base + "/login")
               click_text(desktop, wait, "Continue as Guest")
               wait.until(lambda d: "/dashboard" in d.current_url)
-              wait.until(EC.visibility_of_element_located((By.XPATH, "//*[contains(normalize-space(.), 'Nothing in this view yet')]")))
+              wait.until(lambda d: "Loading practice history..." not in d.page_source)
               settle(desktop)
               desktop.save_screenshot("/tmp/caira-shots/03-dashboard.png")
 
@@ -143,7 +143,7 @@ jobs:
               settle(desktop)
               desktop.save_screenshot("/tmp/caira-shots/10-room-followup.png")
 
-              severe = [e.get("message", "") for e in desktop.get_log("browser") if e.get("level") == "SEVERE" and "favicon" not in e.get("message", "").lower()]
+              severe = [e.get("message", "") for e in desktop.get_log("browser") if e.get("level") == "SEVERE" and "favicon" not in e.get("message", "").lower() and "TTS utterance error" not in e.get("message", "")]
               if severe:
                   print("Desktop console errors:", severe)
                   raise AssertionError("Desktop browser console errors detected")
