@@ -17,39 +17,39 @@ import type {
   FinalReportData,
 } from "@/types/interview";
 
-const apiKey = process.env.GEMINI_API_KEY || "";
+const apiKey = process.env.GEMINI_API_KEY?.trim() || "";
+const modelName = process.env.GEMINI_MODEL?.trim() || "gemini-3.8-flash";
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
-// Helper for transient retry
 async function executeWithRetry<T>(fn: () => Promise<T>, retries = 1): Promise<T> {
   try {
     return await fn();
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (retries > 0) {
-      console.warn("Gemini API call failed, retrying once...", error?.message || error);
-      await new Promise((res) => setTimeout(res, 1200));
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn("Gemini API call failed, retrying once...", message);
+      await new Promise((resolve) => setTimeout(resolve, 1200));
       return executeWithRetry(fn, retries - 1);
     }
     throw error;
   }
 }
 
-// ------------------------------------------------------------------------------
-// 1. Skill Extraction
-// ------------------------------------------------------------------------------
+function parseJson<T>(text: string): T {
+  return JSON.parse(text) as T;
+}
+
 export async function extractSkillsWithGemini(
   jobRole: string,
   jdText?: string,
   resumeText?: string,
   resumePdfBase64?: string
 ): Promise<SkillExtractionResult> {
-  if (!genAI) {
-    return getSimulatedSkills(jobRole, jdText);
-  }
+  if (!genAI) return getSimulatedSkills(jobRole);
 
   return executeWithRetry(async () => {
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
+      model: modelName,
       generationConfig: {
         responseMimeType: "application/json",
         responseSchema: SKILL_EXTRACTION_SCHEMA,
@@ -57,7 +57,7 @@ export async function extractSkillsWithGemini(
       },
     });
 
-    const parts: any[] = [];
+    const parts: Array<Record<string, unknown>> = [];
     if (resumePdfBase64) {
       parts.push({
         inlineData: {
@@ -66,37 +66,35 @@ export async function extractSkillsWithGemini(
         },
       });
     }
+    parts.push({ text: buildSkillExtractionPrompt(jobRole, jdText, resumeText) });
 
-    parts.push({
-      text: buildSkillExtractionPrompt(jobRole, jdText, resumeText),
-    });
-
-    const result = await model.generateContent(parts);
-    const text = result.response.text();
-    return JSON.parse(text) as SkillExtractionResult;
-  }).catch((err) => {
-    console.error("Gemini skill extraction failed, using fallback:", err);
-    return getSimulatedSkills(jobRole, jdText);
+    const result = await model.generateContent(parts as never);
+    return parseJson<SkillExtractionResult>(result.response.text());
+  }).catch((error) => {
+    console.error("Gemini skill extraction failed, using fallback:", error);
+    return getSimulatedSkills(jobRole);
   });
 }
 
-// ------------------------------------------------------------------------------
-// 2. Question Generation
-// ------------------------------------------------------------------------------
 export async function generateQuestionWithGemini(
   jobRole: string,
-  extractedSkills: any,
-  qaHistory: Array<{ question: string; answer?: string | null; evaluation?: any }>,
+  extractedSkills: unknown,
+  qaHistory: Array<{ question: string; answer?: string | null; evaluation?: unknown }>,
   currentQuestionNumber: number,
   targetTotalQuestions: number
 ): Promise<QuestionGenerationResult> {
   if (!genAI) {
-    return getSimulatedQuestion(jobRole, currentQuestionNumber, targetTotalQuestions, extractedSkills, qaHistory);
+    return getSimulatedQuestion(
+      jobRole,
+      currentQuestionNumber,
+      targetTotalQuestions,
+      qaHistory
+    );
   }
 
   return executeWithRetry(async () => {
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
+      model: modelName,
       systemInstruction: buildQuestionGenerationSystemPrompt(jobRole),
       generationConfig: {
         responseMimeType: "application/json",
@@ -114,31 +112,30 @@ export async function generateQuestionWithGemini(
     );
 
     const result = await model.generateContent(prompt);
-    const text = result.response.text();
-    return JSON.parse(text) as QuestionGenerationResult;
-  }).catch((err) => {
-    console.error("Gemini question generation error, falling back to simulated:", err);
-    return getSimulatedQuestion(jobRole, currentQuestionNumber, targetTotalQuestions, extractedSkills, qaHistory);
+    return parseJson<QuestionGenerationResult>(result.response.text());
+  }).catch((error) => {
+    console.error("Gemini question generation failed, using fallback:", error);
+    return getSimulatedQuestion(
+      jobRole,
+      currentQuestionNumber,
+      targetTotalQuestions,
+      qaHistory
+    );
   });
 }
 
-// ------------------------------------------------------------------------------
-// 3. Answer Evaluation
-// ------------------------------------------------------------------------------
 export async function evaluateAnswerWithGemini(
   jobRole: string,
   question: string,
   answer: string,
   targetSkill?: string,
-  extractedSkills?: any
+  extractedSkills?: unknown
 ): Promise<AnswerEvaluationResult> {
-  if (!genAI) {
-    return getSimulatedAnswerEvaluation(answer, targetSkill);
-  }
+  if (!genAI) return getSimulatedAnswerEvaluation(answer);
 
   return executeWithRetry(async () => {
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
+      model: modelName,
       generationConfig: {
         responseMimeType: "application/json",
         responseSchema: ANSWER_EVALUATION_SCHEMA,
@@ -155,20 +152,20 @@ export async function evaluateAnswerWithGemini(
     );
 
     const result = await model.generateContent(prompt);
-    const text = result.response.text();
-    return JSON.parse(text) as AnswerEvaluationResult;
-  }).catch((err) => {
-    console.error("Gemini evaluation error, using simulation:", err);
-    return getSimulatedAnswerEvaluation(answer, targetSkill);
+    const evaluation = parseJson<AnswerEvaluationResult>(result.response.text());
+    return {
+      ...evaluation,
+      score: Math.max(0, Math.min(10, Math.round(Number(evaluation.score) || 0))),
+    };
+  }).catch((error) => {
+    console.error("Gemini answer evaluation failed, using fallback:", error);
+    return getSimulatedAnswerEvaluation(answer);
   });
 }
 
-// ------------------------------------------------------------------------------
-// 4. Final Report
-// ------------------------------------------------------------------------------
 export async function generateFinalReportWithGemini(
   jobRole: string,
-  extractedSkills: any,
+  extractedSkills: unknown,
   qaRecords: Array<{
     question_number: number;
     question_text: string;
@@ -176,16 +173,14 @@ export async function generateFinalReportWithGemini(
     targets_skill?: string;
     answer_text?: string | null;
     score?: number | null;
-    evaluation?: any;
+    evaluation?: unknown;
   }>
 ): Promise<FinalReportData> {
-  if (!genAI) {
-    return getSimulatedFinalReport(jobRole, extractedSkills, qaRecords);
-  }
+  if (!genAI) return getSimulatedFinalReport(jobRole, qaRecords);
 
   return executeWithRetry(async () => {
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
+      model: modelName,
       generationConfig: {
         responseMimeType: "application/json",
         responseSchema: FINAL_REPORT_SCHEMA,
@@ -195,58 +190,92 @@ export async function generateFinalReportWithGemini(
 
     const prompt = buildFinalReportPrompt(jobRole, extractedSkills, qaRecords);
     const result = await model.generateContent(prompt);
-    const text = result.response.text();
-    return JSON.parse(text) as FinalReportData;
-  }).catch((err) => {
-    console.error("Gemini report generation error, using fallback:", err);
-    return getSimulatedFinalReport(jobRole, extractedSkills, qaRecords);
+    const report = parseJson<FinalReportData>(result.response.text());
+    return {
+      ...report,
+      overall_score: Math.max(
+        0,
+        Math.min(100, Math.round(Number(report.overall_score) || 0))
+      ),
+    };
+  }).catch((error) => {
+    console.error("Gemini final report failed, using fallback:", error);
+    return getSimulatedFinalReport(jobRole, qaRecords);
   });
 }
 
-// ==============================================================================
-// Realistic Fallback / Simulation Generators
-// ==============================================================================
-function getSimulatedSkills(jobRole: string, jdText?: string): SkillExtractionResult {
-  const isEngineer = /engineer|developer|software|fullstack|frontend|backend/i.test(jobRole);
+function getSimulatedSkills(jobRole: string): SkillExtractionResult {
   const isProduct = /product|manager|pm/i.test(jobRole);
   const isData = /data|ml|ai|analyst/i.test(jobRole);
 
   if (isProduct) {
     return {
-      required_skills: ["Product Strategy", "User Research & PRD", "Metrics & KPIs", "Stakeholder Alignment"],
+      required_skills: [
+        "Product Strategy",
+        "User Research & PRD",
+        "Metrics & KPIs",
+        "Stakeholder Alignment",
+      ],
       nice_to_have_skills: ["A/B Testing", "SQL / Data Analysis", "Figma Prototyping"],
       seniority_level: "senior",
-      key_focus_areas: ["Product Sense", "Execution & Prioritization", "Cross-Functional Leadership"],
+      key_focus_areas: [
+        "Product Sense",
+        "Execution & Prioritization",
+        "Cross-Functional Leadership",
+      ],
     };
   }
 
   if (isData) {
     return {
-      required_skills: ["Python", "SQL & Data Modeling", "Statistical Analysis", "Machine Learning Pipelines"],
-      nice_to_have_skills: ["PyTorch / TensorFlow", "Distributed Computing (Spark)", "Cloud Warehouses (BigQuery/Snowflake)"],
+      required_skills: [
+        "Python",
+        "SQL & Data Modeling",
+        "Statistical Analysis",
+        "Machine Learning Pipelines",
+      ],
+      nice_to_have_skills: [
+        "PyTorch / TensorFlow",
+        "Distributed Computing (Spark)",
+        "Cloud Warehouses (BigQuery/Snowflake)",
+      ],
       seniority_level: "mid",
-      key_focus_areas: ["Model Architecture", "Data Reliability & Drift", "Translating Insights to Business"],
+      key_focus_areas: [
+        "Model Architecture",
+        "Data Reliability & Drift",
+        "Translating Insights to Business",
+      ],
     };
   }
 
   return {
-    required_skills: ["System Architecture", "TypeScript / JavaScript", "API Design (REST/GraphQL)", "Database Modeling (SQL/NoSQL)"],
-    nice_to_have_skills: ["Cloud & DevOps (Docker, CI/CD)", "Next.js / React Performance", "Testing & Reliability"],
+    required_skills: [
+      "System Architecture",
+      "TypeScript / JavaScript",
+      "API Design (REST/GraphQL)",
+      "Database Modeling (SQL/NoSQL)",
+    ],
+    nice_to_have_skills: [
+      "Cloud & DevOps (Docker, CI/CD)",
+      "Next.js / React Performance",
+      "Testing & Reliability",
+    ],
     seniority_level: "senior",
-    key_focus_areas: ["Distributed Systems", "Clean Code & Refactoring", "Technical Communication under Pressure"],
+    key_focus_areas: [
+      "Distributed Systems",
+      "Clean Code & Refactoring",
+      "Technical Communication under Pressure",
+    ],
   };
 }
 
 function getSimulatedQuestion(
   jobRole: string,
-  qNum: number,
-  totalQ: number,
-  skills: any,
-  history: any[]
+  questionNumber: number,
+  totalQuestions: number,
+  history: Array<{ question: string; answer?: string | null }>
 ): QuestionGenerationResult {
-  const lastAns = history.length > 0 ? history[history.length - 1]?.answer || "" : "";
-
-  if (qNum === 1) {
+  if (questionNumber === 1) {
     return {
       question: `Welcome! To kick off our mock interview for the ${jobRole} role, could you walk me through a recent project you led or contributed heavily to, focusing on the technical architecture decisions and trade-offs you made?`,
       question_type: "technical",
@@ -254,62 +283,75 @@ function getSimulatedQuestion(
     };
   }
 
-  if (qNum === 2) {
+  if (questionNumber === 2) {
     return {
-      question: `Thanks for that breakdown. You mentioned handling complex data flows. Can you describe a challenging bug or performance bottleneck that occurred in production, and how you traced and resolved it?`,
+      question:
+        "Thanks for that breakdown. Can you describe a challenging production bug or performance bottleneck, and how you traced and resolved it?",
       question_type: "technical",
       targets_skill: "Debugging & Observability",
     };
   }
 
-  if (qNum === 3) {
+  if (questionNumber === 3) {
     return {
-      question: `Tell me about a time when you strongly disagreed with an engineering manager, product lead, or teammate regarding a technical roadmap or implementation choice. How did you navigate that disagreement?`,
+      question:
+        "Tell me about a time you strongly disagreed with a teammate or stakeholder about a technical roadmap or implementation choice. How did you navigate the disagreement?",
       question_type: "behavioral",
       targets_skill: "Stakeholder Alignment & Communication",
     };
   }
 
-  if (qNum === 4) {
+  if (questionNumber === 4) {
     return {
-      question: `Let's dive into scaling. If the traffic on your core service suddenly increased 10x overnight, what parts of your system would break first, and what mitigation steps would you implement?`,
+      question:
+        "If traffic on your core service increased 10x overnight, what would you expect to fail first, and what mitigation steps would you prioritize?",
       question_type: "situational",
       targets_skill: "Scalability & Resilience",
     };
   }
 
-  if (qNum >= totalQ) {
+  if (questionNumber >= totalQuestions) {
     return {
-      question: `Looking back at your career so far, what is one major technical failure or regret you experienced, what did you learn from it, and how has it shaped your engineering judgment today?`,
+      question:
+        "Looking back at your experience, what is one major technical mistake or failed approach, what did you learn from it, and how has it changed your judgment?",
       question_type: "behavioral",
       targets_skill: "Continuous Learning & Ownership",
     };
   }
 
+  const previousAnswer = history.at(-1)?.answer?.trim();
   return {
-    question: `In your previous answer, you touched on collaboration. When requirements are ambiguous and deadlines are tight, how do you determine what to build versus what to defer?`,
+    question: previousAnswer
+      ? "Building on your previous answer, when requirements are ambiguous and deadlines are tight, how do you decide what to build now versus what to defer?"
+      : "When requirements are ambiguous and deadlines are tight, how do you decide what to build now versus what to defer?",
     question_type: "situational",
     targets_skill: "Execution & Prioritization",
   };
 }
 
-function getSimulatedAnswerEvaluation(answer: string, targetSkill?: string): AnswerEvaluationResult {
-  const words = answer.trim().split(/\s+/).length;
+function getSimulatedAnswerEvaluation(answer: string): AnswerEvaluationResult {
+  const words = answer.trim().split(/\s+/).filter(Boolean).length;
+
   if (words < 12) {
     return {
       score: 4,
       strengths: ["Direct attempt at addressing the question."],
-      gaps: ["The response is very brief.", "Lacks specific technical depth, metrics, or concrete examples."],
-      feedback: "Try using the STAR format (Situation, Task, Action, Result) and include specific technologies or measurable outcomes.",
+      gaps: [
+        "The response is very brief.",
+        "It needs more specific context, decisions, or measurable outcomes.",
+      ],
+      feedback:
+        "Try using the STAR structure (Situation, Task, Action, Result) and add concrete technologies, trade-offs, or outcomes.",
     };
   }
 
   if (words < 40) {
     return {
       score: 7,
-      strengths: ["Clear core message", "Mentions relevant context."],
-      gaps: ["Could articulate the trade-offs or alternatives considered more clearly."],
-      feedback: "Good foundation! You can elevate this to a top-tier answer by explaining why you picked this approach over alternatives.",
+      strengths: ["Clear core message", "Includes relevant context."],
+      gaps: ["The trade-offs or alternatives considered could be explained more clearly."],
+      feedback:
+        "Good foundation. Strengthen it by explaining why you chose this approach over the alternatives and what changed as a result.",
     };
   }
 
@@ -317,56 +359,61 @@ function getSimulatedAnswerEvaluation(answer: string, targetSkill?: string): Ans
     score: 9,
     strengths: [
       "Structured, comprehensive explanation.",
-      "Good inclusion of concrete architectural or decision-making details.",
-      "Clear ownership and reflection on outcomes.",
+      "Includes concrete technical or decision-making details.",
+      "Shows ownership and reflection on outcomes.",
     ],
-    gaps: ["Minor: ensure you keep the narrative concise so the interviewer has time for follow-ups."],
-    feedback: "Strong response with clear technical depth and balanced situational context.",
+    gaps: ["Keep the narrative concise enough to leave room for follow-up questions."],
+    feedback:
+      "Strong response with clear depth and useful context. Keep the strongest evidence and metrics near the center of the answer.",
   };
 }
 
 function getSimulatedFinalReport(
   jobRole: string,
-  skills: any,
-  qaRecords: any[]
+  qaRecords: Array<{ score?: number | null }>
 ): FinalReportData {
-  const scores = qaRecords.map((q) => q.score || 7);
-  const avg = Math.round(scores.reduce((a, b) => a + b, 0) / (scores.length || 1));
-  const overall = Math.min(100, Math.max(30, avg * 10 + 5));
+  const scores = qaRecords.map((question) => question.score ?? 7);
+  const average = scores.length
+    ? scores.reduce((sum, score) => sum + score, 0) / scores.length
+    : 0;
+  const overall = Math.max(0, Math.min(100, Math.round(average * 10)));
 
   return {
     overall_score: overall,
-    summary: `The candidate demonstrated solid competence for the ${jobRole} role, articulating technical solutions with clarity and showing strong problem-solving instinct under interview conditions.`,
+    summary: `The practice session showed a solid foundation for ${jobRole} interviews, with clear problem-solving and room to make examples more specific and measurable.`,
     top_strengths: [
-      "Structured thought process when dissecting multi-layered problems.",
-      "Effective communication of architectural trade-offs.",
-      "Positive attitude towards cross-functional collaboration and feedback.",
+      "Structured thought process when breaking down multi-layered problems.",
+      "Clear communication of technical trade-offs.",
+      "Constructive approach to collaboration and feedback.",
     ],
     key_gaps: [
-      "Quantify impact more consistently with specific metrics (e.g. latency reductions, percentage uptime).",
-      "Proactively elaborate on system failure modes and fallback strategies.",
+      "Quantify outcomes more consistently with concrete metrics.",
+      "Explain failure modes and fallback strategies more proactively.",
     ],
-    recommendation: overall >= 80 ? "Strong Hire / Advanced Readiness" : "Solid Candidate — Practice Deeper System Design Scenarios",
+    recommendation:
+      overall >= 80
+        ? "Advanced practice readiness — continue with harder follow-up and system-design scenarios."
+        : "Continue practice with deeper examples, clearer trade-offs, and stronger STAR outcomes.",
     per_skill_breakdown: [
       {
         skill: "Technical Depth & Architecture",
         score: Math.min(100, overall + 4),
-        notes: "Articulated core components well; can strengthen on failure edge-cases.",
+        notes: "Good core reasoning; strengthen failure-mode analysis.",
       },
       {
         skill: "Behavioral & STAR Delivery",
-        score: Math.min(100, overall - 2),
-        notes: "Good storytelling; remember to highlight the 'Result' phase with numbers.",
+        score: Math.max(0, overall - 2),
+        notes: "Good structure; make the result phase more measurable.",
       },
       {
         skill: "Communication & Clarity",
         score: Math.min(100, overall + 6),
-        notes: "Calm, coherent pacing; handled follow-ups smoothly.",
+        notes: "Clear pacing and coherent explanations.",
       },
       {
         skill: "Problem Solving & Trade-offs",
-        score: Math.min(100, overall),
-        notes: "Understands cost vs. speed trade-offs in modern production environments.",
+        score: overall,
+        notes: "Shows sound prioritization and trade-off awareness.",
       },
     ],
   };
