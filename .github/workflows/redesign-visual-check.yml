@@ -46,9 +46,10 @@ jobs:
 
       - name: Run desktop and mobile visual journey
         run: |
+          rm -rf /tmp/caira-shots
           mkdir -p /tmp/caira-shots
           python - <<'PY'
-          import os
+          import time
           from selenium import webdriver
           from selenium.webdriver.common.by import By
           from selenium.webdriver.support.ui import WebDriverWait
@@ -69,9 +70,14 @@ jobs:
               options.set_capability("goog:loggingPrefs", {"browser": "ALL"})
               return webdriver.Chrome(options=options)
 
+          def settle(driver, delay=0.45):
+              driver.execute_script("document.documentElement.style.scrollBehavior='auto';")
+              time.sleep(delay)
+
           def click_text(driver, wait, text):
               el = wait.until(EC.element_to_be_clickable((By.XPATH, f"//button[contains(normalize-space(.), {text!r})] | //a[contains(normalize-space(.), {text!r})]")))
-              driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
+              driver.execute_script("document.documentElement.style.scrollBehavior='auto'; arguments[0].scrollIntoView({block:'center', behavior:'instant'});", el)
+              time.sleep(0.15)
               el.click()
               return el
 
@@ -80,42 +86,62 @@ jobs:
           try:
               desktop.get(base + "/")
               wait.until(EC.visibility_of_element_located((By.XPATH, "//*[contains(normalize-space(.), 'Practice the interview, not the question bank.')]")))
+              settle(desktop)
               desktop.save_screenshot("/tmp/caira-shots/01-home-desktop.png")
 
               click_text(desktop, wait, "ML Engineer")
               wait.until(EC.visibility_of_element_located((By.XPATH, "//*[contains(normalize-space(.), 'Model reliability')]")))
               click_text(desktop, wait, "Simulate next")
+              settle(desktop)
               desktop.save_screenshot("/tmp/caira-shots/02-home-interactive.png")
 
               desktop.get(base + "/login")
               click_text(desktop, wait, "Continue as Guest")
               wait.until(lambda d: "/dashboard" in d.current_url)
+              wait.until(EC.visibility_of_element_located((By.XPATH, "//*[contains(normalize-space(.), 'Nothing in this view yet')]")))
+              settle(desktop)
               desktop.save_screenshot("/tmp/caira-shots/03-dashboard.png")
 
               desktop.get(base + "/interview/new")
               role = wait.until(EC.visibility_of_element_located((By.ID, "jobRole")))
               role.clear()
               role.send_keys("Machine Learning Engineer")
+              settle(desktop)
               desktop.save_screenshot("/tmp/caira-shots/04-builder-role.png")
+
               click_text(desktop, wait, "Continue")
+              wait.until(EC.visibility_of_element_located((By.XPATH, "//*[contains(normalize-space(.), 'Give the interviewer something real to work with.')]")))
+              settle(desktop)
               desktop.save_screenshot("/tmp/caira-shots/05-builder-evidence.png")
+
               click_text(desktop, wait, "Continue")
+              wait.until(EC.visibility_of_element_located((By.XPATH, "//*[contains(normalize-space(.), 'What does this company actually want?')]")))
+              settle(desktop)
               desktop.save_screenshot("/tmp/caira-shots/06-builder-brief.png")
+
               click_text(desktop, wait, "Continue")
+              wait.until(EC.visibility_of_element_located((By.XPATH, "//*[contains(normalize-space(.), 'How deep should CAIRA go?')]")))
               click_text(desktop, wait, "5")
+              settle(desktop)
               desktop.save_screenshot("/tmp/caira-shots/07-builder-session.png")
+
               click_text(desktop, wait, "Enter interview room")
               wait.until(lambda d: "/interview/caira-" in d.current_url)
               wait.until(EC.visibility_of_element_located((By.XPATH, "//*[contains(normalize-space(.), 'Question 1 of 5')]")))
+              settle(desktop, 0.8)
               desktop.save_screenshot("/tmp/caira-shots/08-room-question.png")
 
               textarea = wait.until(EC.visibility_of_element_located((By.TAG_NAME, "textarea")))
               textarea.send_keys("I found that aggregate accuracy was hiding a weak user segment, so I broke performance down by cohort, traced the failure to distribution shift, added per-segment evaluation and a safer fallback, then monitored the change against the original baseline.")
               click_text(desktop, wait, "Submit answer")
               wait.until(EC.visibility_of_element_located((By.XPATH, "//*[contains(normalize-space(.), 'Turn evaluation')]")))
+              settle(desktop)
               desktop.save_screenshot("/tmp/caira-shots/09-room-feedback.png")
+
               click_text(desktop, wait, "Continue to follow-up")
               wait.until(EC.visibility_of_element_located((By.XPATH, "//*[contains(normalize-space(.), 'Question 2 of 5')]")))
+              settle(desktop)
+              desktop.save_screenshot("/tmp/caira-shots/10-room-followup.png")
 
               severe = [e.get("message", "") for e in desktop.get_log("browser") if e.get("level") == "SEVERE" and "favicon" not in e.get("message", "").lower()]
               if severe:
@@ -129,10 +155,12 @@ jobs:
           try:
               mobile.get(base + "/")
               mwait.until(EC.visibility_of_element_located((By.XPATH, "//*[contains(normalize-space(.), 'Practice the interview, not the question bank.')]")))
-              mobile.save_screenshot("/tmp/caira-shots/10-home-mobile.png")
+              settle(mobile)
+              mobile.save_screenshot("/tmp/caira-shots/11-home-mobile.png")
               mobile.get(base + "/interview/new")
               mwait.until(EC.visibility_of_element_located((By.ID, "jobRole")))
-              mobile.save_screenshot("/tmp/caira-shots/11-builder-mobile.png")
+              settle(mobile)
+              mobile.save_screenshot("/tmp/caira-shots/12-builder-mobile.png")
               severe = [e.get("message", "") for e in mobile.get_log("browser") if e.get("level") == "SEVERE" and "favicon" not in e.get("message", "").lower()]
               if severe:
                   print("Mobile console errors:", severe)
