@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI, type Part } from "@google/genai";
 import {
   SKILL_EXTRACTION_SCHEMA,
   QUESTION_GENERATION_SCHEMA,
@@ -19,7 +19,11 @@ import type {
 
 const apiKey = process.env.GEMINI_API_KEY?.trim() || "";
 const modelName = process.env.GEMINI_MODEL?.trim() || "gemini-3.8-flash";
-const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
+const parsedTimeout = Number(process.env.GEMINI_TIMEOUT_MS || 20000);
+const GEMINI_TIMEOUT_MS = Number.isFinite(parsedTimeout)
+  ? Math.max(5000, Math.min(60000, parsedTimeout))
+  : 20000;
+const genAI = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
 async function executeWithRetry<T>(fn: () => Promise<T>, retries = 1): Promise<T> {
   try {
@@ -35,8 +39,14 @@ async function executeWithRetry<T>(fn: () => Promise<T>, retries = 1): Promise<T
   }
 }
 
-function parseJson<T>(text: string): T {
-  return JSON.parse(text) as T;
+function parseJson<T>(text: string | undefined): T {
+  const payload = text?.trim();
+  if (!payload) throw new Error("EMPTY_GEMINI_RESPONSE");
+  return JSON.parse(payload) as T;
+}
+
+function httpOptions() {
+  return { timeout: GEMINI_TIMEOUT_MS };
 }
 
 export async function extractSkillsWithGemini(
@@ -48,16 +58,7 @@ export async function extractSkillsWithGemini(
   if (!genAI) return getSimulatedSkills(jobRole);
 
   return executeWithRetry(async () => {
-    const model = genAI.getGenerativeModel({
-      model: modelName,
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: SKILL_EXTRACTION_SCHEMA,
-        temperature: 0.2,
-      },
-    });
-
-    const parts: Array<Record<string, unknown>> = [];
+    const parts: Part[] = [];
     if (resumePdfBase64) {
       parts.push({
         inlineData: {
@@ -68,8 +69,19 @@ export async function extractSkillsWithGemini(
     }
     parts.push({ text: buildSkillExtractionPrompt(jobRole, jdText, resumeText) });
 
-    const result = await model.generateContent(parts as never);
-    return parseJson<SkillExtractionResult>(result.response.text());
+    const result = await genAI.models.generateContent({
+      model: modelName,
+      contents: parts,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: SKILL_EXTRACTION_SCHEMA,
+        temperature: 0.2,
+        maxOutputTokens: 1200,
+        httpOptions: httpOptions(),
+      },
+    });
+
+    return parseJson<SkillExtractionResult>(result.text);
   }).catch((error) => {
     console.error("Gemini skill extraction failed, using fallback:", error);
     return getSimulatedSkills(jobRole);
@@ -93,16 +105,6 @@ export async function generateQuestionWithGemini(
   }
 
   return executeWithRetry(async () => {
-    const model = genAI.getGenerativeModel({
-      model: modelName,
-      systemInstruction: buildQuestionGenerationSystemPrompt(jobRole),
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: QUESTION_GENERATION_SCHEMA,
-        temperature: 0.6,
-      },
-    });
-
     const prompt = buildQuestionGenerationPrompt(
       jobRole,
       extractedSkills,
@@ -111,8 +113,20 @@ export async function generateQuestionWithGemini(
       targetTotalQuestions
     );
 
-    const result = await model.generateContent(prompt);
-    return parseJson<QuestionGenerationResult>(result.response.text());
+    const result = await genAI.models.generateContent({
+      model: modelName,
+      contents: prompt,
+      config: {
+        systemInstruction: buildQuestionGenerationSystemPrompt(jobRole),
+        responseMimeType: "application/json",
+        responseSchema: QUESTION_GENERATION_SCHEMA,
+        temperature: 0.6,
+        maxOutputTokens: 700,
+        httpOptions: httpOptions(),
+      },
+    });
+
+    return parseJson<QuestionGenerationResult>(result.text);
   }).catch((error) => {
     console.error("Gemini question generation failed, using fallback:", error);
     return getSimulatedQuestion(
@@ -134,15 +148,6 @@ export async function evaluateAnswerWithGemini(
   if (!genAI) return getSimulatedAnswerEvaluation(answer);
 
   return executeWithRetry(async () => {
-    const model = genAI.getGenerativeModel({
-      model: modelName,
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: ANSWER_EVALUATION_SCHEMA,
-        temperature: 0.3,
-      },
-    });
-
     const prompt = buildAnswerEvaluationPrompt(
       jobRole,
       question,
@@ -151,8 +156,19 @@ export async function evaluateAnswerWithGemini(
       extractedSkills
     );
 
-    const result = await model.generateContent(prompt);
-    const evaluation = parseJson<AnswerEvaluationResult>(result.response.text());
+    const result = await genAI.models.generateContent({
+      model: modelName,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: ANSWER_EVALUATION_SCHEMA,
+        temperature: 0.3,
+        maxOutputTokens: 1200,
+        httpOptions: httpOptions(),
+      },
+    });
+
+    const evaluation = parseJson<AnswerEvaluationResult>(result.text);
     return {
       ...evaluation,
       score: Math.max(0, Math.min(10, Math.round(Number(evaluation.score) || 0))),
@@ -179,18 +195,20 @@ export async function generateFinalReportWithGemini(
   if (!genAI) return getSimulatedFinalReport(jobRole, qaRecords);
 
   return executeWithRetry(async () => {
-    const model = genAI.getGenerativeModel({
+    const prompt = buildFinalReportPrompt(jobRole, extractedSkills, qaRecords);
+    const result = await genAI.models.generateContent({
       model: modelName,
-      generationConfig: {
+      contents: prompt,
+      config: {
         responseMimeType: "application/json",
         responseSchema: FINAL_REPORT_SCHEMA,
         temperature: 0.4,
+        maxOutputTokens: 2400,
+        httpOptions: httpOptions(),
       },
     });
 
-    const prompt = buildFinalReportPrompt(jobRole, extractedSkills, qaRecords);
-    const result = await model.generateContent(prompt);
-    const report = parseJson<FinalReportData>(result.response.text());
+    const report = parseJson<FinalReportData>(result.text);
     return {
       ...report,
       overall_score: Math.max(

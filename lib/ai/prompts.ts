@@ -1,29 +1,29 @@
-import { SchemaType, type ResponseSchema } from "@google/generative-ai";
+import { Type, type Schema } from "@google/genai";
 
 // ==============================================================================
 // 1. SKILL EXTRACTION
 // ==============================================================================
-export const SKILL_EXTRACTION_SCHEMA: ResponseSchema = {
-  type: SchemaType.OBJECT,
+export const SKILL_EXTRACTION_SCHEMA: Schema = {
+  type: Type.OBJECT,
   properties: {
     required_skills: {
-      type: SchemaType.ARRAY,
-      items: { type: SchemaType.STRING },
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
       description: "Must-have technical or domain skills extracted from the JD and role.",
     },
     nice_to_have_skills: {
-      type: SchemaType.ARRAY,
-      items: { type: SchemaType.STRING },
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
       description: "Preferred or secondary skills mentioned.",
     },
     seniority_level: {
-      type: SchemaType.STRING,
+      type: Type.STRING,
       enum: ["junior", "mid", "senior", "lead"],
       description: "Inferred seniority level.",
     },
     key_focus_areas: {
-      type: SchemaType.ARRAY,
-      items: { type: SchemaType.STRING },
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
       description: "Key themes or interview assessment focus areas (e.g. System Design, Conflict Resolution).",
     },
   },
@@ -45,20 +45,20 @@ Extract the required skills, nice-to-have skills, assessed seniority level, and 
 // ==============================================================================
 // 2. QUESTION GENERATION
 // ==============================================================================
-export const QUESTION_GENERATION_SCHEMA: ResponseSchema = {
-  type: SchemaType.OBJECT,
+export const QUESTION_GENERATION_SCHEMA: Schema = {
+  type: Type.OBJECT,
   properties: {
     question: {
-      type: SchemaType.STRING,
+      type: Type.STRING,
       description: "The interview question to ask the candidate.",
     },
     question_type: {
-      type: SchemaType.STRING,
+      type: Type.STRING,
       enum: ["technical", "behavioral", "situational"],
       description: "Category of the question.",
     },
     targets_skill: {
-      type: SchemaType.STRING,
+      type: Type.STRING,
       description: "The primary skill or competency this question targets.",
     },
   },
@@ -106,25 +106,25 @@ Return the response adhering strictly to the JSON schema.`;
 // ==============================================================================
 // 3. ANSWER EVALUATION
 // ==============================================================================
-export const ANSWER_EVALUATION_SCHEMA: ResponseSchema = {
-  type: SchemaType.OBJECT,
+export const ANSWER_EVALUATION_SCHEMA: Schema = {
+  type: Type.OBJECT,
   properties: {
     score: {
-      type: SchemaType.INTEGER,
+      type: Type.INTEGER,
       description: "Score from 0 to 10 evaluating the quality and depth of the answer.",
     },
     strengths: {
-      type: SchemaType.ARRAY,
-      items: { type: SchemaType.STRING },
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
       description: "Specific strengths and good points in the candidate's answer.",
     },
     gaps: {
-      type: SchemaType.ARRAY,
-      items: { type: SchemaType.STRING },
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
       description: "Missing aspects, ambiguities, or areas where the candidate could be more specific.",
     },
     feedback: {
-      type: SchemaType.STRING,
+      type: Type.STRING,
       description: "Constructive, encouraging, and actionable feedback for improvement.",
     },
   },
@@ -155,39 +155,39 @@ Provide an objective, encouraging, and constructive evaluation:
 // ==============================================================================
 // 4. FINAL REPORT
 // ==============================================================================
-export const FINAL_REPORT_SCHEMA: ResponseSchema = {
-  type: SchemaType.OBJECT,
+export const FINAL_REPORT_SCHEMA: Schema = {
+  type: Type.OBJECT,
   properties: {
     overall_score: {
-      type: SchemaType.INTEGER,
+      type: Type.INTEGER,
       description: "Overall interview readiness score from 0 to 100.",
     },
     summary: {
-      type: SchemaType.STRING,
+      type: Type.STRING,
       description: "Executive summary of the candidate's interview performance and readiness level.",
     },
     top_strengths: {
-      type: SchemaType.ARRAY,
-      items: { type: SchemaType.STRING },
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
       description: "Top 3 to 5 candidate strengths across all questions.",
     },
     key_gaps: {
-      type: SchemaType.ARRAY,
-      items: { type: SchemaType.STRING },
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
       description: "Top 3 to 4 actionable gaps or areas needing study before real interviews.",
     },
     recommendation: {
-      type: SchemaType.STRING,
-      description: "Hiring decision prediction / readiness recommendation (e.g., 'Strong Hire for Mid-level', 'Borderline — Practice System Design').",
+      type: Type.STRING,
+      description: "Practice-readiness recommendation that identifies the next useful level or focus area without predicting a hiring decision.",
     },
     per_skill_breakdown: {
-      type: SchemaType.ARRAY,
+      type: Type.ARRAY,
       items: {
-        type: SchemaType.OBJECT,
+        type: Type.OBJECT,
         properties: {
-          skill: { type: SchemaType.STRING },
-          score: { type: SchemaType.INTEGER, description: "Score from 0 to 100" },
-          notes: { type: SchemaType.STRING },
+          skill: { type: Type.STRING },
+          score: { type: Type.INTEGER, description: "Score from 0 to 100" },
+          notes: { type: Type.STRING },
         },
         required: ["skill", "score", "notes"],
       },
