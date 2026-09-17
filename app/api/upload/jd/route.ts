@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     const generatedName = `${Date.now()}-${safeName}`;
     let storagePath: string | undefined;
 
-    const supabase = getSupabaseServerClient();
+    const supabase = await getSupabaseServerClient();
     if (supabase) {
       const {
         data: { user },

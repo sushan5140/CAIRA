@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import { ReportSummary } from "@/components/report-summary";
 import { Sparkles, AlertCircle } from "lucide-react";
 import type { Interview } from "@/types/interview";
 
-export default function InterviewReportPage({ params }: { params: { id: string } }) {
+export default function InterviewReportPage() {
+  const params = useParams<{ id: string }>();
   const interviewId = params.id;
   const [interview, setInterview] = useState<Interview | null>(null);
   const [isLoading, setIsLoading] = useState(true);

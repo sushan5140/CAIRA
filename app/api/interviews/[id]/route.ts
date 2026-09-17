@@ -3,10 +3,10 @@ import { getInterviewById } from "@/lib/supabase/service";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const interviewId = params.id;
+    const { id: interviewId } = await params;
     const interview = await getInterviewById(interviewId);
 
     if (!interview) {
