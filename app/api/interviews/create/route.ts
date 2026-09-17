@@ -5,6 +5,7 @@ import { createInterview, saveQuestion } from "@/lib/supabase/service";
 const MAX_ROLE_CHARS = 160;
 const MAX_TEXT_CHARS = 40000;
 const MAX_BASE64_CHARS = 14_000_000;
+const MAX_PATH_CHARS = 1024;
 
 function optionalText(value: unknown, maxLength: number) {
   if (typeof value !== "string") return undefined;
@@ -30,6 +31,8 @@ export async function POST(req: NextRequest) {
     const jdText = optionalText(body.jdText, MAX_TEXT_CHARS);
     const resumeText = optionalText(body.resumeText, MAX_TEXT_CHARS);
     const resumePdfBase64 = optionalText(body.resumePdfBase64, MAX_BASE64_CHARS);
+    const resumePath = optionalText(body.resumePath, MAX_PATH_CHARS);
+    const jdPath = optionalText(body.jdPath, MAX_PATH_CHARS);
     const parsedTarget = Number(body.targetQuestions);
     const targetQuestions = Number.isFinite(parsedTarget)
       ? Math.max(5, Math.min(10, Math.round(parsedTarget)))
@@ -45,6 +48,8 @@ export async function POST(req: NextRequest) {
     const interview = await createInterview({
       jobRole,
       jdText,
+      resumePath,
+      jdPath,
       extractedSkills,
       targetQuestions,
     });
@@ -65,10 +70,13 @@ export async function POST(req: NextRequest) {
       targetsSkill: q1Result.targets_skill,
     });
 
+    const hydratedInterview = { ...interview, questions: [question1] };
+
     return NextResponse.json({
       success: true,
-      interview: { ...interview, questions: [question1] },
+      interview: hydratedInterview,
       question: question1,
+      persistence: interview.id.startsWith("caira-") ? "local" : "server",
     });
   } catch (error: unknown) {
     if (error instanceof Error && error.message === "INPUT_TOO_LARGE") {
