@@ -5,22 +5,15 @@ import { useParams, useRouter } from "next/navigation";
 import { CameraPreview } from "@/components/camera-preview";
 import { QuestionCard } from "@/components/question-card";
 import { AnswerInput } from "@/components/answer-input";
-import {
-  Sparkles,
-  Award,
-  Layers,
-  ArrowRight,
-  AlertCircle,
-  CheckCircle2,
-  Brain,
-  Shield,
-} from "lucide-react";
+import { getLocalInterview, saveLocalInterview } from "@/lib/demo/client-store";
+import { Sparkles, Layers, AlertCircle, Brain } from "lucide-react";
 import type { Interview, InterviewQuestion, AnswerEvaluationResult } from "@/types/interview";
 
 export default function InterviewRoomPage() {
   const params = useParams<{ id: string }>();
   const interviewId = params.id;
   const router = useRouter();
+  const isGuestInterview = interviewId.startsWith("caira-");
 
   const [interview, setInterview] = useState<Interview | null>(null);
   const [questions, setQuestions] = useState<InterviewQuestion[]>([]);
@@ -31,39 +24,58 @@ export default function InterviewRoomPage() {
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch initial interview state
-  const loadInterview = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/interviews/${interviewId}`);
-      if (!res.ok) {
-        throw new Error("Interview not found");
-      }
-      const data = await res.json();
-      const intv: Interview = data.interview;
-      setInterview(intv);
-
-      if (intv.status === "completed") {
-        router.push(`/interview/${interviewId}/report`);
-        return;
-      }
-
-      const qList = intv.questions || [];
+  const applyInterview = useCallback(
+    (intv: Interview) => {
+      const qList = [...(intv.questions || [])].sort(
+        (a, b) => a.question_number - b.question_number
+      );
+      setInterview({ ...intv, questions: qList });
       setQuestions(qList);
 
-      // Find first unanswered question
       const unansweredIdx = qList.findIndex((q) => !q.answer_text);
       if (unansweredIdx !== -1) {
         setCurrentQuestionIndex(unansweredIdx);
       } else if (qList.length > 0) {
         setCurrentQuestionIndex(qList.length - 1);
       }
-    } catch (err: any) {
+
+      if (isGuestInterview) saveLocalInterview({ ...intv, questions: qList });
+    },
+    [isGuestInterview]
+  );
+
+  const loadInterview = useCallback(async () => {
+    try {
+      if (isGuestInterview) {
+        const local = getLocalInterview(interviewId);
+        if (local) {
+          if (local.status === "completed") {
+            router.replace(`/interview/${interviewId}/report`);
+            return;
+          }
+          applyInterview(local);
+          return;
+        }
+      }
+
+      const res = await fetch(`/api/interviews/${interviewId}`, { cache: "no-store" });
+      if (!res.ok) throw new Error("Interview not found");
+
+      const data = await res.json();
+      const intv: Interview = data.interview;
+      if (intv.status === "completed") {
+        if (isGuestInterview) saveLocalInterview(intv);
+        router.replace(`/interview/${interviewId}/report`);
+        return;
+      }
+      applyInterview(intv);
+    } catch (err: unknown) {
       console.error("Failed to load interview room:", err);
-      setError(err?.message || "Could not load interview session");
+      setError(err instanceof Error ? err.message : "Could not load interview session");
     } finally {
       setIsLoading(false);
     }
-  }, [interviewId, router]);
+  }, [applyInterview, interviewId, isGuestInterview, router]);
 
   useEffect(() => {
     loadInterview();
@@ -73,9 +85,13 @@ export default function InterviewRoomPage() {
   const targetTotal = interview?.target_questions || 5;
   const isLastQuestion = (currentQuestion?.question_number || 1) >= targetTotal;
 
-  // Handle Answer Submission & Turn Evaluation
+  const currentClientInterview = useCallback((): Interview | null => {
+    if (!interview) return null;
+    return { ...interview, questions };
+  }, [interview, questions]);
+
   const handleSubmitAnswer = async (answer: string): Promise<AnswerEvaluationResult | null> => {
-    if (!currentQuestion) return null;
+    if (!currentQuestion || !interview) return null;
 
     setIsEvaluating(true);
     setError(null);
@@ -87,76 +103,114 @@ export default function InterviewRoomPage() {
         body: JSON.stringify({
           questionId: currentQuestion.id,
           answerText: answer,
+          localInterview: isGuestInterview ? currentClientInterview() : undefined,
         }),
       });
 
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || "Failed to evaluate answer");
-      }
-
       const data = await res.json();
-      const evaluation: AnswerEvaluationResult = data.evaluation;
+      if (!res.ok) throw new Error(data.error || "Failed to evaluate answer");
 
-      // Update question locally
-      const updatedQuestions = [...questions];
-      updatedQuestions[currentQuestionIndex] = {
-        ...currentQuestion,
-        answer_text: answer,
-        score: evaluation.score,
-        evaluation,
-      };
+      const evaluation: AnswerEvaluationResult = data.evaluation;
+      const updatedQuestions = questions.map((question) =>
+        question.id === currentQuestion.id
+          ? {
+              ...question,
+              answer_text: answer,
+              score: evaluation.score,
+              evaluation,
+            }
+          : question
+      );
+
+      const nextInterview: Interview = { ...interview, questions: updatedQuestions };
       setQuestions(updatedQuestions);
+      setInterview(nextInterview);
+      if (isGuestInterview) saveLocalInterview(nextInterview);
 
       return evaluation;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Answer submission error:", err);
-      setError(err?.message || "Evaluation failed. Please try again.");
+      setError(err instanceof Error ? err.message : "Evaluation failed. Please try again.");
       return null;
     } finally {
       setIsEvaluating(false);
     }
   };
 
-  // Move to next question or finalize report
+  const finalizeReport = useCallback(async () => {
+    if (!interview) return;
+
+    setIsGeneratingReport(true);
+    setError(null);
+
+    try {
+      const localInterview = { ...interview, questions };
+      const res = await fetch(`/api/interviews/${interviewId}/report`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          localInterview: isGuestInterview ? localInterview : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to compile final report");
+
+      const completedInterview: Interview = {
+        ...localInterview,
+        status: "completed",
+        report: data.report,
+        overall_score: data.overall_score,
+        completed_at: new Date().toISOString(),
+      };
+
+      if (isGuestInterview) saveLocalInterview(completedInterview);
+      setInterview(completedInterview);
+      router.push(`/interview/${interviewId}/report`);
+    } catch (err: unknown) {
+      console.error("Report generation error:", err);
+      setError(err instanceof Error ? err.message : "Failed to finalize the report. Please try again.");
+      setIsGeneratingReport(false);
+    }
+  }, [interview, interviewId, isGuestInterview, questions, router]);
+
   const handleNextQuestion = async () => {
+    if (!interview) return;
     if (isLastQuestion) {
-      // Finalize and generate report
-      setIsGeneratingReport(true);
-      try {
-        const res = await fetch(`/api/interviews/${interviewId}/report`, {
-          method: "POST",
-        });
-        if (!res.ok) {
-          throw new Error("Failed to compile final report");
-        }
-        router.push(`/interview/${interviewId}/report`);
-      } catch (err: any) {
-        console.error("Report generation error:", err);
-        setError("Error finalizing report. Navigating to report view...");
-        router.push(`/interview/${interviewId}/report`);
-      }
+      await finalizeReport();
       return;
     }
 
-    // Otherwise, generate/fetch next question
     setIsLoadingNext(true);
+    setError(null);
     try {
       const res = await fetch(`/api/interviews/${interviewId}/question`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          localInterview: isGuestInterview ? currentClientInterview() : undefined,
+        }),
       });
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to generate follow-up question");
 
       if (data.question) {
-        const newQuestions = [...questions, data.question];
+        const alreadyExists = questions.some((question) => question.id === data.question.id);
+        const newQuestions = alreadyExists
+          ? questions
+          : [...questions, data.question].sort((a, b) => a.question_number - b.question_number);
+        const nextIndex = newQuestions.findIndex((question) => question.id === data.question.id);
+        const nextInterview = { ...interview, questions: newQuestions };
+
         setQuestions(newQuestions);
-        setCurrentQuestionIndex(newQuestions.length - 1);
+        setInterview(nextInterview);
+        setCurrentQuestionIndex(nextIndex >= 0 ? nextIndex : newQuestions.length - 1);
+        if (isGuestInterview) saveLocalInterview(nextInterview);
       } else if (data.completed) {
-        handleNextQuestion();
+        await finalizeReport();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to fetch next question:", err);
-      setError("Failed to generate follow-up question.");
+      setError(err instanceof Error ? err.message : "Failed to generate follow-up question.");
     } finally {
       setIsLoadingNext(false);
     }
@@ -180,7 +234,7 @@ export default function InterviewRoomPage() {
         <div className="space-y-2">
           <h2 className="text-xl font-bold text-white">Synthesizing Interview Performance</h2>
           <p className="text-xs text-slate-400 leading-relaxed">
-            Gemini is analyzing all answers, communication delivery, and architectural depth to calculate your final readiness score...
+            CAIRA is analyzing your answers, communication, and role-specific depth to build your final readiness report.
           </p>
         </div>
       </div>
@@ -189,7 +243,6 @@ export default function InterviewRoomPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-      {/* Top Session Breadcrumb */}
       <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800">
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -203,7 +256,9 @@ export default function InterviewRoomPage() {
             Question {currentQuestion?.question_number || 1} of {targetTotal}
           </span>
           <span className="hidden sm:inline text-slate-500">•</span>
-          <span className="hidden sm:inline text-slate-400">Adaptive Dialogue Mode</span>
+          <span className="hidden sm:inline text-slate-400">
+            {isGuestInterview ? "Guest Practice • saved on this device" : "Adaptive Dialogue Mode"}
+          </span>
         </div>
       </div>
 
@@ -214,13 +269,10 @@ export default function InterviewRoomPage() {
         </div>
       )}
 
-      {/* Main Grid: Left Column = Camera & Role Competencies; Right Column = Question & Answer */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column (Webcam & Competency pill checklist) */}
         <div className="lg:col-span-4 space-y-4">
           <CameraPreview className="w-full" />
 
-          {/* Competencies assessed in this session */}
           {interview?.extracted_skills && (
             <div className="rounded-2xl bg-slate-900/80 border border-slate-800 p-4 space-y-3">
               <div className="flex items-center justify-between text-xs font-semibold">
@@ -265,7 +317,6 @@ export default function InterviewRoomPage() {
           )}
         </div>
 
-        {/* Right Column (Question Card & Answer Controller) */}
         <div className="lg:col-span-8 space-y-5">
           {currentQuestion ? (
             <>
@@ -280,6 +331,7 @@ export default function InterviewRoomPage() {
               />
 
               <AnswerInput
+                key={currentQuestion.id}
                 onSubmitAnswer={handleSubmitAnswer}
                 onNextQuestion={handleNextQuestion}
                 isSubmitting={isEvaluating}
