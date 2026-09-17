@@ -1,14 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateQuestionWithGemini } from "@/lib/ai/gemini";
 import { getInterviewById, saveQuestion } from "@/lib/supabase/service";
+import type { Interview, InterviewQuestion } from "@/types/interview";
+
+function getGuestInterview(value: unknown, interviewId: string): Interview | null {
+  if (!interviewId.startsWith("caira-") || !value || typeof value !== "object") return null;
+  const candidate = value as Interview;
+  return candidate.id === interviewId ? candidate : null;
+}
+
+function createGuestQuestion(data: {
+  interviewId: string;
+  questionNumber: number;
+  questionText: string;
+  questionType: InterviewQuestion["question_type"];
+  targetsSkill?: string;
+}): InterviewQuestion {
+  return {
+    id: `q-local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+    interview_id: data.interviewId,
+    question_number: data.questionNumber,
+    question_text: data.questionText,
+    question_type: data.questionType,
+    targets_skill: data.targetsSkill,
+    created_at: new Date().toISOString(),
+  };
+}
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id: interviewId } = await params;
-    const interview = await getInterviewById(interviewId);
+    const body = await req.json().catch(() => ({}));
+    const guestInterview = getGuestInterview(body.localInterview, interviewId);
+    const serverInterview = guestInterview ? null : await getInterviewById(interviewId);
+    const interview = guestInterview || serverInterview;
+    const isGuestFallback = Boolean(guestInterview);
 
     if (!interview) {
       return NextResponse.json({ error: "Interview not found" }, { status: 404 });
@@ -23,8 +52,6 @@ export async function POST(
     );
     const targetTotal = Math.max(5, Math.min(10, interview.target_questions || 5));
 
-    // If a previous request already created the next turn, reuse it instead of
-    // creating a duplicate question during retries/double clicks.
     const existingUnanswered = questions.find((q) => !q.answer_text);
     if (existingUnanswered) {
       return NextResponse.json({ success: true, question: existingUnanswered, reused: true });
@@ -52,13 +79,21 @@ export async function POST(
       targetTotal
     );
 
-    const newQuestion = await saveQuestion({
-      interviewId,
-      questionNumber: nextQuestionNumber,
-      questionText: result.question,
-      questionType: result.question_type,
-      targetsSkill: result.targets_skill,
-    });
+    const newQuestion = isGuestFallback
+      ? createGuestQuestion({
+          interviewId,
+          questionNumber: nextQuestionNumber,
+          questionText: result.question,
+          questionType: result.question_type,
+          targetsSkill: result.targets_skill,
+        })
+      : await saveQuestion({
+          interviewId,
+          questionNumber: nextQuestionNumber,
+          questionText: result.question,
+          questionType: result.question_type,
+          targetsSkill: result.targets_skill,
+        });
 
     return NextResponse.json({ success: true, question: newQuestion });
   } catch (error: unknown) {
