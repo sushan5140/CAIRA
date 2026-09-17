@@ -1,14 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateFinalReportWithGemini } from "@/lib/ai/gemini";
 import { getInterviewById, completeInterview } from "@/lib/supabase/service";
+import type { Interview } from "@/types/interview";
+
+function getGuestInterview(value: unknown, interviewId: string): Interview | null {
+  if (!interviewId.startsWith("caira-") || !value || typeof value !== "object") return null;
+  const candidate = value as Interview;
+  return candidate.id === interviewId ? candidate : null;
+}
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id: interviewId } = await params;
-    const interview = await getInterviewById(interviewId);
+    const body = await req.json().catch(() => ({}));
+    const guestInterview = getGuestInterview(body.localInterview, interviewId);
+    const serverInterview = guestInterview ? null : await getInterviewById(interviewId);
+    const interview = guestInterview || serverInterview;
+    const isGuestFallback = Boolean(guestInterview);
 
     if (!interview) {
       return NextResponse.json({ error: "Interview not found" }, { status: 404 });
@@ -46,7 +57,9 @@ export async function POST(
       questions.slice(0, targetTotal)
     );
 
-    await completeInterview(interviewId, report.overall_score, report);
+    if (!isGuestFallback) {
+      await completeInterview(interviewId, report.overall_score, report);
+    }
 
     return NextResponse.json({
       success: true,
