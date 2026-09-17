@@ -32,8 +32,6 @@ jobs:
         run: |
           python - <<'PY'
           import os
-          import sys
-          import time
           from selenium import webdriver
           from selenium.webdriver.common.by import By
           from selenium.webdriver.support.ui import WebDriverWait
@@ -84,8 +82,7 @@ jobs:
               role.send_keys("Senior Full-Stack Engineer")
               click_text("Enter Interview Room")
               wait.until(lambda d: "/interview/caira-" in d.current_url and "/report" not in d.current_url)
-              interview_url = driver.current_url
-              print("Interview URL:", interview_url)
+              print("Interview URL:", driver.current_url)
 
               answer = (
                   "In a recent project I first clarified the user impact and constraints, then split the problem into measurable steps. "
@@ -95,6 +92,11 @@ jobs:
 
               print("[4/7] Five-question interview")
               for question_number in range(1, 6):
+                  wait.until(
+                      EC.visibility_of_element_located(
+                          (By.XPATH, f"//*[contains(normalize-space(.), 'Question {question_number} of 5')]")
+                      )
+                  )
                   textarea = wait.until(EC.visibility_of_element_located((By.TAG_NAME, "textarea")))
                   textarea.clear()
                   textarea.send_keys(answer + f" This was my response for question {question_number}.")
@@ -104,7 +106,12 @@ jobs:
 
                   if question_number < 5:
                       click_text("Next Question")
-                      wait.until(EC.visibility_of_element_located((By.TAG_NAME, "textarea")))
+                      next_number = question_number + 1
+                      wait.until(
+                          EC.visibility_of_element_located(
+                              (By.XPATH, f"//*[contains(normalize-space(.), 'Question {next_number} of 5')]")
+                          )
+                      )
                   else:
                       click_text("Complete Interview & View Report")
 
