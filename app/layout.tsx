@@ -27,7 +27,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" data-scroll-behavior="smooth">
       <body className={`${inter.className} min-h-screen text-slate-900 pb-20 md:pb-0`}>
         <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden">
           <div className="absolute inset-0 paper-grid opacity-45" />
