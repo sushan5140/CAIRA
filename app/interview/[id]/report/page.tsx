@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { ReportSummary } from "@/components/report-summary";
+import { getLocalInterview, saveLocalInterview } from "@/lib/demo/client-store";
 import { Sparkles, AlertCircle } from "lucide-react";
 import type { Interview } from "@/types/interview";
 
 export default function InterviewReportPage() {
   const params = useParams<{ id: string }>();
   const interviewId = params.id;
+  const isGuestInterview = interviewId.startsWith("caira-");
   const [interview, setInterview] = useState<Interview | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -16,45 +18,55 @@ export default function InterviewReportPage() {
   useEffect(() => {
     async function loadReport() {
       try {
-        const res = await fetch(`/api/interviews/${interviewId}`);
-        if (!res.ok) throw new Error("Could not find interview");
+        let intv: Interview | null = isGuestInterview ? getLocalInterview(interviewId) : null;
 
-        const data = await res.json();
-        let intv: Interview = data.interview;
+        if (!intv) {
+          const res = await fetch(`/api/interviews/${interviewId}`, { cache: "no-store" });
+          if (!res.ok) throw new Error("Could not find interview");
+          const data = await res.json();
+          intv = data.interview as Interview;
+        }
 
-        // If report is not yet generated, call report API to compile it
         if (!intv.report) {
           const reportRes = await fetch(`/api/interviews/${interviewId}/report`, {
             method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              localInterview: isGuestInterview ? intv : undefined,
+            }),
           });
-          if (reportRes.ok) {
-            const reportData = await reportRes.json();
-            intv = {
-              ...intv,
-              status: "completed",
-              overall_score: reportData.overall_score,
-              report: reportData.report,
-            };
+          const reportData = await reportRes.json();
+          if (!reportRes.ok) {
+            throw new Error(reportData.error || "Report is not ready yet");
           }
+
+          intv = {
+            ...intv,
+            status: "completed",
+            overall_score: reportData.overall_score,
+            report: reportData.report,
+            completed_at: intv.completed_at || new Date().toISOString(),
+          };
         }
 
+        if (isGuestInterview) saveLocalInterview(intv);
         setInterview(intv);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Error loading report:", err);
-        setError(err?.message || "Failed to load report");
+        setError(err instanceof Error ? err.message : "Failed to load report");
       } finally {
         setIsLoading(false);
       }
     }
 
     loadReport();
-  }, [interviewId]);
+  }, [interviewId, isGuestInterview]);
 
   if (isLoading) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center gap-3">
         <Sparkles className="w-8 h-8 text-indigo-400 animate-spin" />
-        <p className="text-sm text-slate-300 font-medium">Generating Comprehensive Readiness Report...</p>
+        <p className="text-sm text-slate-300 font-medium">Loading your readiness report...</p>
       </div>
     );
   }
