@@ -10,11 +10,23 @@ import {
   ChevronRight,
   Sparkles,
   Award,
-  Clock,
-  ArrowUpRight,
 } from "lucide-react";
 import { ScoreBadge } from "@/components/score-badge";
+import { listLocalInterviews } from "@/lib/demo/client-store";
 import type { Interview } from "@/types/interview";
+
+function mergeInterviews(server: Interview[], local: Interview[]) {
+  const merged = new Map<string, Interview>();
+  for (const interview of server) merged.set(interview.id, interview);
+  for (const interview of local) {
+    if (!merged.has(interview.id) || interview.id.startsWith("caira-")) {
+      merged.set(interview.id, interview);
+    }
+  }
+  return Array.from(merged.values()).sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+}
 
 export default function DashboardPage() {
   const [interviews, setInterviews] = useState<Interview[]>([]);
@@ -22,14 +34,14 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function fetchInterviews() {
+      const local = listLocalInterviews();
       try {
-        const res = await fetch("/api/interviews");
-        const data = await res.json();
-        if (data.interviews) {
-          setInterviews(data.interviews);
-        }
+        const res = await fetch("/api/interviews", { cache: "no-store" });
+        const data = res.ok ? await res.json() : { interviews: [] };
+        setInterviews(mergeInterviews(data.interviews || [], local));
       } catch (err) {
-        console.error("Failed to load interviews:", err);
+        console.error("Failed to load server interviews:", err);
+        setInterviews(local);
       } finally {
         setIsLoading(false);
       }
@@ -46,14 +58,13 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
-      {/* Dashboard Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
             Interview Readiness Dashboard
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            Track your mock interview progress, competency scoring, and readiness over time.
+            Track account sessions and guest practice stored on this device in one place.
           </p>
         </div>
 
@@ -66,7 +77,6 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {/* Metrics Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
         <div className="rounded-2xl bg-slate-900/80 border border-slate-800 p-5 shadow-lg backdrop-blur-md">
           <div className="flex items-center justify-between">
@@ -99,30 +109,25 @@ export default function DashboardPage() {
             <span className="text-3xl font-bold text-white">{completed.length}</span>
             <span className="text-xs text-slate-400">interviews</span>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            {interviews.length} total sessions initiated
-          </p>
+          <p className="text-xs text-slate-500 mt-1">{interviews.length} total sessions initiated</p>
         </div>
 
         <div className="rounded-2xl bg-slate-900/80 border border-slate-800 p-5 shadow-lg backdrop-blur-md">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              AI Evaluator Model
+              AI Evaluator
             </span>
             <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-400">
               <Sparkles className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-xl font-bold text-white">Gemini 1.5</span>
+            <span className="text-xl font-bold text-white">Gemini 3.8 Flash</span>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Structured JSON Rubric & Web Speech STT
-          </p>
+          <p className="text-xs text-slate-500 mt-1">Configurable model + structured readiness rubric</p>
         </div>
       </div>
 
-      {/* Past Interviews List */}
       <div className="rounded-2xl bg-slate-900/80 border border-slate-800 shadow-xl backdrop-blur-md overflow-hidden">
         <div className="p-6 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -162,13 +167,14 @@ export default function DashboardPage() {
           <div className="divide-y divide-slate-800">
             {interviews.map((intv) => {
               const isDone = intv.status === "completed";
+              const isGuest = intv.id.startsWith("caira-");
               const targetLink = isDone ? `/interview/${intv.id}/report` : `/interview/${intv.id}`;
 
               return (
                 <Link
                   key={intv.id}
                   href={targetLink}
-                  className="flex items-center justify-between p-5 hover:bg-slate-850/60 transition-colors group"
+                  className="flex items-center justify-between p-5 hover:bg-slate-950/40 transition-colors group"
                 >
                   <div className="space-y-1.5 min-w-0 pr-4">
                     <div className="flex items-center gap-2.5 flex-wrap">
@@ -184,6 +190,11 @@ export default function DashboardPage() {
                       >
                         {isDone ? "Completed" : "In Progress"}
                       </span>
+                      {isGuest && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+                          This device
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-4 text-xs text-slate-400">

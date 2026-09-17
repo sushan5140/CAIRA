@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { evaluateAnswerWithGemini } from "@/lib/ai/gemini";
 import { getInterviewById, updateQuestionAnswer } from "@/lib/supabase/service";
+import type { Interview } from "@/types/interview";
 
 const MAX_ANSWER_CHARS = 12000;
+
+function getGuestInterview(value: unknown, interviewId: string): Interview | null {
+  if (!interviewId.startsWith("caira-") || !value || typeof value !== "object") return null;
+  const candidate = value as Interview;
+  return candidate.id === interviewId ? candidate : null;
+}
 
 export async function POST(
   req: NextRequest,
@@ -28,7 +35,11 @@ export async function POST(
       );
     }
 
-    const interview = await getInterviewById(interviewId);
+    const guestInterview = getGuestInterview(body.localInterview, interviewId);
+    const serverInterview = guestInterview ? null : await getInterviewById(interviewId);
+    const interview = guestInterview || serverInterview;
+    const isGuestFallback = Boolean(guestInterview);
+
     if (!interview) {
       return NextResponse.json({ error: "Interview not found" }, { status: 404 });
     }
@@ -42,8 +53,6 @@ export async function POST(
       return NextResponse.json({ error: "Question not found" }, { status: 404 });
     }
 
-    // Make retries idempotent: if this turn was already evaluated, return the
-    // stored result instead of invoking Gemini and charging twice.
     if (question.answer_text && question.evaluation) {
       return NextResponse.json({
         success: true,
@@ -61,13 +70,15 @@ export async function POST(
       interview.extracted_skills
     );
 
-    await updateQuestionAnswer({
-      questionId,
-      interviewId,
-      answerText,
-      score: evaluation.score,
-      evaluation,
-    });
+    if (!isGuestFallback) {
+      await updateQuestionAnswer({
+        questionId,
+        interviewId,
+        answerText,
+        score: evaluation.score,
+        evaluation,
+      });
+    }
 
     return NextResponse.json({
       success: true,

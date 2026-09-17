@@ -1,14 +1,66 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Sparkles, Video, BarChart2, PlusCircle, User, ShieldCheck } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { isDemoMode, markDemoMode } from "@/lib/demo/client-store";
+import {
+  Sparkles,
+  Video,
+  BarChart2,
+  PlusCircle,
+  User,
+  ShieldCheck,
+  LogOut,
+} from "lucide-react";
 
 export function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [demoMode, setDemoMode] = useState(false);
 
-  // Hide or minimize navbar during full-immersion interview session if desired, or keep lean
-  const isInterviewSession = pathname.startsWith("/interview/") && !pathname.endsWith("/new") && !pathname.endsWith("/report");
+  const isInterviewSession =
+    pathname.startsWith("/interview/") &&
+    !pathname.endsWith("/new") &&
+    !pathname.endsWith("/report");
+
+  useEffect(() => {
+    setDemoMode(isDemoMode());
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+
+    supabase.auth.getUser().then(({ data }) => {
+      setUserEmail(data.user?.email || null);
+      if (data.user) {
+        markDemoMode(false);
+        setDemoMode(false);
+      }
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserEmail(session?.user?.email || null);
+      if (session?.user) {
+        markDemoMode(false);
+        setDemoMode(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleSignOut = async () => {
+    const supabase = getSupabaseBrowserClient();
+    if (supabase) await supabase.auth.signOut();
+    markDemoMode(false);
+    setUserEmail(null);
+    setDemoMode(false);
+    router.push("/");
+    router.refresh();
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md no-print">
@@ -62,7 +114,7 @@ export function Navbar() {
           )}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           {isInterviewSession && (
             <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/50 border border-emerald-800/50 text-emerald-400 text-xs font-medium">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
@@ -70,9 +122,9 @@ export function Navbar() {
             </div>
           )}
 
-          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-900 border border-slate-800 text-xs text-slate-400">
+          <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-900 border border-slate-800 text-xs text-slate-400">
             <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Gemini 1.5 Evaluator</span>
+            <span>Gemini 3.8 default</span>
           </div>
 
           <Link
@@ -80,16 +132,36 @@ export function Navbar() {
             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white text-sm font-medium shadow-sm transition-all hover:shadow-indigo-500/20 active:scale-95"
           >
             <PlusCircle className="w-4 h-4" />
-            <span>New Interview</span>
+            <span className="hidden sm:inline">New Interview</span>
           </Link>
 
-          <Link
-            href="/login"
-            className="p-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition-colors"
-            title="Account / Login"
-          >
-            <User className="w-4 h-4" />
-          </Link>
+          {userEmail || demoMode ? (
+            <div className="flex items-center gap-1.5">
+              <div
+                className="hidden xl:flex max-w-52 items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-400"
+                title={userEmail || "Guest practice is stored on this device"}
+              >
+                <User className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                <span className="truncate">{userEmail || "Guest mode"}</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="p-2 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-slate-900 transition-colors"
+                title={userEmail ? "Sign out" : "Exit guest mode"}
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <Link
+              href="/login"
+              className="p-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition-colors"
+              title="Account / Login"
+            >
+              <User className="w-4 h-4" />
+            </Link>
+          )}
         </div>
       </div>
     </header>
