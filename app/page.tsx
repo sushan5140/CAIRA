@@ -77,7 +77,7 @@ export default function HomePage() {
                 <span className="text-slate-400 ml-2 font-mono">caira.interview-room/live</span>
               </div>
               <span className="text-emerald-400 bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-800/40">
-                Gemini 1.5 Adaptive Loop Active
+                Adaptive Evaluator • Gemini 3.8 Default
               </span>
             </div>
 
