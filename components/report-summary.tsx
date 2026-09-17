@@ -1,21 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import confetti from "canvas-confetti";
 import {
-  Award,
-  CheckCircle2,
   AlertCircle,
+  ArrowLeft,
+  ArrowRight,
+  Award,
+  Brain,
+  Check,
+  CheckCircle2,
+  ListChecks,
   Printer,
   RotateCcw,
-  ArrowRight,
-  TrendingUp,
-  Briefcase,
-  FileText,
   Sparkles,
-  ChevronDown,
-  Brain,
+  Target,
+  TrendingUp,
 } from "lucide-react";
 import { ScoreBadge } from "./score-badge";
 import type { Interview } from "@/types/interview";
@@ -24,275 +25,243 @@ interface ReportSummaryProps {
   interview: Interview;
 }
 
+type ReportTab = "overview" | "skills" | "turns";
+
 export function ReportSummary({ interview }: ReportSummaryProps) {
   const report = interview.report;
   const questions = interview.questions || [];
-  const overallScore = report?.overall_score ?? interview.overall_score ?? 75;
+  const overallScore = report?.overall_score ?? interview.overall_score ?? 0;
+  const [tab, setTab] = useState<ReportTab>("overview");
+  const [selectedTurn, setSelectedTurn] = useState(0);
+  const [selectedSkill, setSelectedSkill] = useState(0);
 
   useEffect(() => {
-    // Trigger celebratory confetti for scores >= 70
     if (overallScore >= 70) {
       try {
         confetti({
-          particleCount: 80,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ["#6366f1", "#10b981", "#38bdf8"],
+          particleCount: 52,
+          spread: 64,
+          origin: { y: 0.62 },
+          colors: ["#5b57d9", "#3c9c7b", "#f4cf72"],
         });
-      } catch (e) {
-        // Safe ignore
+      } catch {
+        // Decorative only.
       }
     }
   }, [overallScore]);
 
-  const handlePrint = () => {
-    window.print();
-  };
+  const skillBreakdown = report?.per_skill_breakdown || [];
+  const activeSkill = skillBreakdown[selectedSkill] || skillBreakdown[0];
+  const activeQuestion = questions[selectedTurn] || questions[0];
+  const strongestSkill = useMemo(
+    () => [...skillBreakdown].sort((a, b) => b.score - a.score)[0],
+    [skillBreakdown]
+  );
+  const focusSkill = useMemo(
+    () => [...skillBreakdown].sort((a, b) => a.score - b.score)[0],
+    [skillBreakdown]
+  );
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 pb-16 print-page">
-      {/* Header bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800 no-print">
+    <div className="mx-auto max-w-[1300px] pb-14 print-page">
+      <header className="no-print mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="flex items-center gap-2 text-indigo-400 text-xs font-semibold uppercase tracking-wider mb-1">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>AI Interview Readiness Assessment</span>
+          <div className="flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.17em] text-indigo-600">
+            <Sparkles className="h-3.5 w-3.5" /> Interview Report: {interview.job_role}
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-            Interview Report: {interview.job_role}
-          </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Completed on {new Date(interview.completed_at || interview.created_at).toLocaleDateString("en-US", {
-              month: "long",
-              day: "numeric",
-              year: "numeric",
-            })}
+          <h1 className="mt-2 text-3xl font-extrabold tracking-[-0.05em] text-[#1c2437] sm:text-4xl">Your readiness map.</h1>
+          <p className="mt-2 text-xs font-medium text-slate-500">
+            Completed {new Date(interview.completed_at || interview.created_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
           </p>
         </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 border border-slate-700/80 hover:bg-slate-800 text-slate-200 text-sm font-medium transition-all active:scale-95 shadow-sm"
-          >
-            <Printer className="w-4 h-4 text-slate-400" />
-            <span>Export / Print PDF</span>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => window.print()} className="caira-secondary-button">
+            <Printer className="h-4 w-4" /> Print / PDF
           </button>
-
-          <Link
-            href="/interview/new"
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-all shadow-md shadow-indigo-600/20 active:scale-95"
-          >
-            <RotateCcw className="w-4 h-4" />
-            <span>Practice Again</span>
+          <Link href="/interview/new" className="caira-primary-button">
+            <RotateCcw className="h-4 w-4" /> Practice again
           </Link>
         </div>
-      </div>
+      </header>
 
-      {/* Main Readiness Score Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950/40 border border-slate-800 p-6 sm:p-8 shadow-2xl backdrop-blur-md print-card">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="space-y-3 text-center md:text-left">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-medium">
-              <Award className="w-3.5 h-3.5" />
-              <span>Overall Readiness Score</span>
+      <section className="caira-surface overflow-hidden print-card">
+        <div className="grid gap-0 lg:grid-cols-[300px_1fr]">
+          <div className="bg-[#202941] p-6 text-white sm:p-7">
+            <div className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-indigo-200">Overall Readiness Score</div>
+            <div className="mt-4 flex items-end gap-2">
+              <span className="text-6xl font-extrabold tracking-[-0.08em]">{overallScore}</span>
+              <span className="mb-1 text-sm font-bold text-slate-400">/100</span>
             </div>
-            <h2 className="text-xl sm:text-2xl font-bold text-white">
-              {report?.recommendation || "Readiness Summary"}
-            </h2>
-            <p className="text-sm text-slate-300 max-w-2xl leading-relaxed">
-              {report?.summary || "Comprehensive interview evaluation synthesized across technical clarity, behavioral communication, and architectural trade-offs."}
-            </p>
+            <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/10">
+              <div className="h-full rounded-full bg-gradient-to-r from-indigo-300 via-white to-emerald-300" style={{ width: `${Math.max(2, overallScore)}%` }} />
+            </div>
+            <div className="mt-6 rounded-[20px] border border-white/10 bg-white/5 p-4">
+              <div className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-400">Readiness note</div>
+              <p className="mt-2 text-sm font-bold leading-6 text-white">{report?.recommendation || "Use the breakdown to choose the next practice focus."}</p>
+            </div>
           </div>
 
-          {/* Large circular score meter */}
-          <div className="flex flex-col items-center justify-center shrink-0">
-            <div className="relative w-32 h-32 rounded-full bg-slate-950 border-4 border-slate-800 flex flex-col items-center justify-center shadow-inner">
-              <div
-                className="absolute inset-0 rounded-full border-4 border-indigo-500 border-t-emerald-400"
-                style={{
-                  clipPath: `polygon(0 0, 100% 0, 100% 100%, 0 100%)`,
-                  transform: `rotate(${Math.round(overallScore * 3.6)}deg)`,
-                }}
+          <div className="p-6 sm:p-8">
+            <div className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">Session synthesis</div>
+            <h2 className="mt-3 max-w-3xl text-2xl font-extrabold leading-8 tracking-[-0.04em] text-[#1c2437]">{report?.summary || "Your report combines the strongest evidence, gaps, and turn-level feedback from the practice."}</h2>
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <SignalCard
+                icon={Award}
+                label="Strongest signal"
+                value={strongestSkill ? `${strongestSkill.skill} · ${strongestSkill.score}%` : report?.top_strengths?.[0] || "Complete more turns to reveal a pattern"}
+                tone="jade"
               />
-              <span className="text-4xl font-extrabold text-white tracking-tight">
-                {overallScore}
-              </span>
-              <span className="text-[11px] text-slate-400 uppercase tracking-widest font-semibold">
-                out of 100
-              </span>
+              <SignalCard
+                icon={Target}
+                label="Next focus"
+                value={focusSkill ? `${focusSkill.skill} · ${focusSkill.score}%` : report?.key_gaps?.[0] || "Choose one gap for the next session"}
+                tone="indigo"
+              />
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Strengths & Gaps 2-column breakdown */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Top Strengths */}
-        <div className="rounded-2xl bg-slate-900/80 border border-emerald-500/20 p-6 shadow-xl backdrop-blur-md print-card">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            </div>
-            <h3 className="font-semibold text-white text-base">Key Strengths Demonstrated</h3>
-          </div>
-          <ul className="space-y-3 text-sm text-slate-300">
-            {(report?.top_strengths || [
-              "Clear, structured communication when breaking down solutions.",
-              "Strong technical grounding in core role competencies.",
-              "Positive and collaborative framing of past team interactions.",
-            ]).map((strength, idx) => (
-              <li key={idx} className="flex items-start gap-2.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-2 shrink-0" />
-                <span>{strength}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+      <nav className="no-print mt-5 flex max-w-full gap-1 overflow-x-auto rounded-full border border-stone-200 bg-white/80 p-1.5 sm:w-fit">
+        <TabButton active={tab === "overview"} onClick={() => setTab("overview")} icon={Brain} label="Overview" />
+        <TabButton active={tab === "skills"} onClick={() => setTab("skills")} icon={TrendingUp} label="Skills" />
+        <TabButton active={tab === "turns"} onClick={() => setTab("turns")} icon={ListChecks} label="Turns" />
+      </nav>
 
-        {/* Priority Growth Areas */}
-        <div className="rounded-2xl bg-slate-900/80 border border-amber-500/20 p-6 shadow-xl backdrop-blur-md print-card">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
-              <AlertCircle className="w-4 h-4 text-amber-400" />
-            </div>
-            <h3 className="font-semibold text-white text-base">Key Gaps & Priority Focus</h3>
-          </div>
-          <ul className="space-y-3 text-sm text-slate-300">
-            {(report?.key_gaps || [
-              "Incorporate more quantitative metrics (e.g. % performance increase, latency numbers).",
-              "Elaborate on edge-case scenarios and production failure fallbacks.",
-              "Ensure STAR narrative concludes with clear, measurable business impact.",
-            ]).map((gap, idx) => (
-              <li key={idx} className="flex items-start gap-2.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-2 shrink-0" />
-                <span>{gap}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-
-      {/* Per-Skill Assessment Bars */}
-      {report?.per_skill_breakdown && report.per_skill_breakdown.length > 0 && (
-        <div className="rounded-2xl bg-slate-900/80 border border-slate-800 p-6 shadow-xl backdrop-blur-md space-y-4 print-card">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-5 h-5 text-indigo-400" />
-            <h3 className="font-semibold text-white text-base">Skill Competency Breakdown</h3>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {report.per_skill_breakdown.map((item, idx) => (
-              <div key={idx} className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2">
-                <div className="flex items-center justify-between text-xs font-semibold">
-                  <span className="text-slate-200">{item.skill}</span>
-                  <span className="text-indigo-400">{item.score}%</span>
-                </div>
-                <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-indigo-500 to-emerald-400 rounded-full transition-all duration-500"
-                    style={{ width: `${item.score}%` }}
-                  />
-                </div>
-                <p className="text-[11px] text-slate-400 leading-normal">{item.notes}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Per-Question Full Transcript & Turn-by-Turn Evaluations */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Brain className="w-5 h-5 text-indigo-400" />
-            <h3 className="font-semibold text-white text-lg">Turn-by-Turn Question Analysis</h3>
-          </div>
-          <span className="text-xs text-slate-400">
-            {questions.length} Question{questions.length !== 1 ? "s" : ""} Evaluated
-          </span>
-        </div>
-
-        <div className="space-y-4">
-          {questions.map((q, idx) => (
-            <div
-              key={q.id || idx}
-              className="rounded-2xl bg-slate-900/90 border border-slate-800 p-6 shadow-md space-y-4 print-card"
-            >
-              {/* Question Header */}
-              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-800">
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 text-xs font-semibold">
-                    Q{q.question_number}
-                  </span>
-                  <span className="text-xs font-medium text-slate-400 capitalize">
-                    {q.question_type || "Technical"} • {q.targets_skill || "General"}
-                  </span>
-                </div>
-
-                <ScoreBadge score={q.score ?? 7} maxScore={10} size="sm" />
-              </div>
-
-              {/* Question Text */}
-              <div>
-                <h4 className="text-sm font-semibold text-slate-200 leading-relaxed">
-                  &ldquo;{q.question_text}&rdquo;
-                </h4>
-              </div>
-
-              {/* Candidate's Answer */}
-              <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/80 text-xs text-slate-300">
-                <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1">
-                  Candidate Transcript
-                </div>
-                <p className="italic leading-relaxed">{q.answer_text || "No verbal response recorded."}</p>
-              </div>
-
-              {/* Evaluation Details */}
-              {q.evaluation && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1 text-xs">
-                  <div className="p-3 rounded-lg bg-emerald-950/20 border border-emerald-800/20 text-slate-300">
-                    <span className="font-semibold text-emerald-400 block mb-1">Strengths:</span>
-                    <ul className="list-disc list-inside space-y-0.5">
-                      {q.evaluation.strengths?.map((s, sIdx) => (
-                        <li key={sIdx}>{s}</li>
-                      ))}
-                    </ul>
+      <div className="mt-5 caira-motion-in" key={tab}>
+        {tab === "overview" ? (
+          <div className="grid gap-5 lg:grid-cols-2">
+            <section className="caira-surface p-5 sm:p-6 print-card">
+              <div className="flex items-center gap-2 text-sm font-extrabold text-[#1c2437]"><CheckCircle2 className="h-4 w-4 text-emerald-600" /> What carried the interview</div>
+              <div className="mt-5 space-y-3">
+                {(report?.top_strengths || []).map((strength, index) => (
+                  <div key={`${strength}-${index}`} className="flex gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-emerald-700 shadow-sm"><Check className="h-3 w-3" /></span>
+                    <p className="text-xs font-semibold leading-5 text-emerald-950">{strength}</p>
                   </div>
+                ))}
+              </div>
+            </section>
 
-                  <div className="p-3 rounded-lg bg-amber-950/20 border border-amber-800/20 text-slate-300">
-                    <span className="font-semibold text-amber-400 block mb-1">Recommendations:</span>
-                    <ul className="list-disc list-inside space-y-0.5">
-                      {q.evaluation.gaps?.map((g, gIdx) => (
-                        <li key={gIdx}>{g}</li>
-                      ))}
-                    </ul>
+            <section className="caira-surface p-5 sm:p-6 print-card">
+              <div className="flex items-center gap-2 text-sm font-extrabold text-[#1c2437]"><Target className="h-4 w-4 text-amber-600" /> What to practice next</div>
+              <div className="mt-5 space-y-3">
+                {(report?.key_gaps || []).map((gap, index) => (
+                  <div key={`${gap}-${index}`} className="flex gap-3 rounded-2xl border border-amber-100 bg-amber-50/65 p-4">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-amber-700 shadow-sm"><span className="h-1.5 w-1.5 rounded-full bg-current" /></span>
+                    <p className="text-xs font-semibold leading-5 text-amber-950">{gap}</p>
                   </div>
-                </div>
+                ))}
+              </div>
+              <Link href="/interview/new" className="caira-primary-button mt-5 w-full">Practice this again <ArrowRight className="h-4 w-4" /></Link>
+            </section>
+          </div>
+        ) : null}
+
+        {tab === "skills" ? (
+          <div className="grid gap-5 lg:grid-cols-[320px_1fr]">
+            <aside className="caira-surface p-4 print-card">
+              <div className="px-2 pb-3 text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">Competency map</div>
+              <div className="space-y-2">
+                {skillBreakdown.map((item, index) => (
+                  <button
+                    type="button"
+                    key={`${item.skill}-${index}`}
+                    onClick={() => setSelectedSkill(index)}
+                    className={`w-full rounded-2xl border p-3.5 text-left transition-all ${selectedSkill === index ? "border-indigo-200 bg-indigo-50" : "border-stone-200 bg-white hover:border-indigo-100"}`}
+                  >
+                    <div className="flex items-center justify-between gap-3 text-xs font-extrabold text-[#1c2437]"><span>{item.skill}</span><span className="text-indigo-700">{item.score}%</span></div>
+                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-100"><div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-emerald-500" style={{ width: `${item.score}%` }} /></div>
+                  </button>
+                ))}
+              </div>
+            </aside>
+
+            <section className="caira-surface p-6 sm:p-8 print-card">
+              {activeSkill ? (
+                <>
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <div className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-indigo-600">Selected competency</div>
+                      <h3 className="mt-2 text-3xl font-extrabold tracking-[-0.05em] text-[#1c2437]">{activeSkill.skill}</h3>
+                    </div>
+                    <div className="text-4xl font-extrabold tracking-[-0.06em] text-indigo-700">{activeSkill.score}<span className="text-sm text-slate-400">%</span></div>
+                  </div>
+                  <div className="mt-7 rounded-[24px] border border-stone-200 bg-[#fbfaf7] p-5">
+                    <div className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-400">CAIRA&apos;s read</div>
+                    <p className="mt-2 text-sm font-semibold leading-7 text-slate-700">{activeSkill.notes}</p>
+                  </div>
+                </>
+              ) : (
+                <div className="py-16 text-center text-sm font-semibold text-slate-500">No skill breakdown was generated for this report.</div>
               )}
-            </div>
-          ))}
-        </div>
+            </section>
+          </div>
+        ) : null}
+
+        {tab === "turns" ? (
+          <div className="grid gap-5 lg:grid-cols-[250px_1fr]">
+            <aside className="caira-surface p-4 print-card">
+              <div className="px-2 pb-3 text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">Turn navigator</div>
+              <div className="space-y-2">
+                {questions.map((question, index) => (
+                  <button
+                    type="button"
+                    key={question.id || index}
+                    onClick={() => setSelectedTurn(index)}
+                    className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition-all ${selectedTurn === index ? "border-indigo-200 bg-indigo-50" : "border-stone-200 bg-white hover:border-indigo-100"}`}
+                  >
+                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-extrabold ${selectedTurn === index ? "bg-[#202941] text-white" : "bg-stone-100 text-slate-500"}`}>{question.question_number}</span>
+                    <span className="min-w-0"><span className="block truncate text-xs font-extrabold text-[#1c2437]">{question.targets_skill || question.question_type || "Interview turn"}</span><span className="mt-0.5 block text-[10px] font-semibold text-slate-400">{question.score ?? "—"}/10</span></span>
+                  </button>
+                ))}
+              </div>
+            </aside>
+
+            <section className="caira-surface p-5 sm:p-7 print-card">
+              {activeQuestion ? (
+                <>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2"><span className="rounded-full bg-indigo-50 px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.12em] text-indigo-700">Question {activeQuestion.question_number}</span><span className="text-[11px] font-bold capitalize text-slate-400">{activeQuestion.question_type || "Interview"}</span></div>
+                    <ScoreBadge score={activeQuestion.score ?? 0} maxScore={10} size="md" />
+                  </div>
+                  <h3 className="mt-5 text-xl font-extrabold leading-8 tracking-[-0.035em] text-[#1c2437]">“{activeQuestion.question_text}”</h3>
+                  <div className="mt-5 rounded-[22px] border border-stone-200 bg-[#fbfaf7] p-4"><div className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-400">Your answer</div><p className="mt-2 text-sm leading-7 text-slate-700">{activeQuestion.answer_text || "No response recorded."}</p></div>
+                  {activeQuestion.evaluation ? (
+                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                      <TurnNotes title="What worked" items={activeQuestion.evaluation.strengths || []} tone="jade" />
+                      <TurnNotes title="What was missing" items={activeQuestion.evaluation.gaps || []} tone="amber" />
+                    </div>
+                  ) : null}
+                  {activeQuestion.evaluation?.feedback ? <div className="mt-4 rounded-[22px] border border-indigo-100 bg-indigo-50/70 p-4"><div className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-indigo-700">Coach note</div><p className="mt-2 text-sm font-semibold leading-6 text-indigo-950">{activeQuestion.evaluation.feedback}</p></div> : null}
+                </>
+              ) : (
+                <div className="py-16 text-center text-sm font-semibold text-slate-500">No turn data is available.</div>
+              )}
+            </section>
+          </div>
+        ) : null}
       </div>
 
-      {/* Bottom Action Footer */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-slate-800 no-print">
-        <Link
-          href="/dashboard"
-          className="text-xs text-slate-400 hover:text-slate-200 transition-colors"
-        >
-          ← Return to Dashboard
-        </Link>
-
-        <Link
-          href="/interview/new"
-          className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-medium text-sm shadow-lg shadow-indigo-500/25 transition-all hover:scale-[1.02] active:scale-95"
-        >
-          <span>Start Another Practice Session</span>
-          <ArrowRight className="w-4 h-4" />
-        </Link>
+      <div className="no-print mt-7 flex flex-col gap-3 border-t border-stone-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
+        <Link href="/dashboard" className="caira-secondary-button"><ArrowLeft className="h-4 w-4" /> Back to reports</Link>
+        <Link href="/interview/new" className="caira-primary-button">Start another practice <ArrowRight className="h-4 w-4" /></Link>
       </div>
     </div>
   );
+}
+
+function TabButton({ active, onClick, icon: Icon, label }: { active: boolean; onClick: () => void; icon: typeof Brain; label: string }) {
+  return <button type="button" onClick={onClick} className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-xs font-extrabold transition-all ${active ? "bg-[#202941] text-white shadow-sm" : "text-slate-500 hover:bg-stone-100 hover:text-slate-800"}`}><Icon className="h-3.5 w-3.5" />{label}</button>;
+}
+
+function SignalCard({ icon: Icon, label, value, tone }: { icon: typeof Award; label: string; value: string; tone: "jade" | "indigo" }) {
+  const style = tone === "jade" ? "border-emerald-100 bg-emerald-50/65 text-emerald-900" : "border-indigo-100 bg-indigo-50/65 text-indigo-950";
+  return <div className={`rounded-[22px] border p-4 ${style}`}><Icon className="h-4 w-4" /><div className="mt-3 text-[10px] font-extrabold uppercase tracking-[0.13em] opacity-60">{label}</div><p className="mt-1 text-xs font-extrabold leading-5">{value}</p></div>;
+}
+
+function TurnNotes({ title, items, tone }: { title: string; items: string[]; tone: "jade" | "amber" }) {
+  const style = tone === "jade" ? "border-emerald-100 bg-emerald-50/65 text-emerald-950" : "border-amber-100 bg-amber-50/65 text-amber-950";
+  return <div className={`rounded-[22px] border p-4 ${style}`}><div className="text-xs font-extrabold">{title}</div><ul className="mt-3 space-y-2">{items.map((item, index) => <li key={`${item}-${index}`} className="flex gap-2 text-xs font-semibold leading-5"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-55" />{item}</li>)}</ul></div>;
 }

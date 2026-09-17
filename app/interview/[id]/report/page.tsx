@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { ReportSummary } from "@/components/report-summary";
 import { getLocalInterview, saveLocalInterview } from "@/lib/demo/client-store";
-import { Sparkles, AlertCircle } from "lucide-react";
+import { AlertCircle, Sparkles } from "lucide-react";
 import type { Interview } from "@/types/interview";
 
 export default function InterviewReportPage() {
@@ -31,14 +31,10 @@ export default function InterviewReportPage() {
           const reportRes = await fetch(`/api/interviews/${interviewId}/report`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              localInterview: isGuestInterview ? intv : undefined,
-            }),
+            body: JSON.stringify({ localInterview: isGuestInterview ? intv : undefined }),
           });
           const reportData = await reportRes.json();
-          if (!reportRes.ok) {
-            throw new Error(reportData.error || "Report is not ready yet");
-          }
+          if (!reportRes.ok) throw new Error(reportData.error || "Report is not ready yet");
 
           intv = {
             ...intv,
@@ -64,26 +60,29 @@ export default function InterviewReportPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center gap-3">
-        <Sparkles className="w-8 h-8 text-indigo-400 animate-spin" />
-        <p className="text-sm text-slate-300 font-medium">Loading your readiness report...</p>
+      <div className="flex min-h-[70vh] flex-col items-center justify-center gap-4 px-4 text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-[20px] bg-indigo-50 text-indigo-600 shadow-sm">
+          <Sparkles className="h-6 w-6 animate-spin" />
+        </div>
+        <div>
+          <div className="text-xl font-extrabold tracking-[-0.035em] text-[#1c2437]">Opening your readiness map</div>
+          <p className="mt-1 text-sm text-slate-500">Restoring the report, skills, and turn-level feedback.</p>
+        </div>
       </div>
     );
   }
 
   if (error || !interview) {
     return (
-      <div className="max-w-md mx-auto my-16 p-6 rounded-2xl bg-rose-950/30 border border-rose-800/40 text-center space-y-3">
-        <AlertCircle className="w-8 h-8 text-rose-400 mx-auto" />
-        <h2 className="text-base font-semibold text-white">Report Unavailable</h2>
-        <p className="text-xs text-slate-400">{error || "Interview session not found."}</p>
+      <div className="mx-auto my-16 max-w-md px-4">
+        <div className="caira-surface p-7 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-[18px] bg-rose-50 text-rose-600"><AlertCircle className="h-5 w-5" /></div>
+          <h2 className="mt-4 text-lg font-extrabold text-[#1c2437]">Report unavailable</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-500">{error || "Interview session not found."}</p>
+        </div>
       </div>
     );
   }
 
-  return (
-    <div className="px-4 sm:px-6 lg:px-8 py-8">
-      <ReportSummary interview={interview} />
-    </div>
-  );
+  return <div className="px-4 py-7 sm:px-6 lg:px-8 lg:py-9"><ReportSummary interview={interview} /></div>;
 }
