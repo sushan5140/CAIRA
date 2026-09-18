@@ -167,7 +167,6 @@ export default function NewInterviewPage() {
               onChange={(e) => setJobRole(e.target.value)}
               className="caira-input !py-4 !text-base !font-semibold"
               placeholder="e.g. Frontend Engineer"
-              autoFocus
             />
           </div>
 
