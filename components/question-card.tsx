@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles, Brain, Target, Layers } from "lucide-react";
+import { Brain, Sparkles, Target } from "lucide-react";
 import { InterviewerVoice } from "./interviewer-voice";
 import type { QuestionType } from "@/types/interview";
 
@@ -23,88 +23,77 @@ export function QuestionCard({
   isLoadingNext = false,
   jobRole,
 }: QuestionCardProps) {
-  const getTypeStyle = (type: string) => {
-    switch (type.toLowerCase()) {
-      case "behavioral":
-        return "bg-amber-500/10 text-amber-300 border-amber-500/20";
-      case "situational":
-        return "bg-purple-500/10 text-purple-300 border-purple-500/20";
-      default:
-        return "bg-indigo-500/10 text-indigo-300 border-indigo-500/20";
-    }
-  };
-
   const progressPercent = Math.round((questionNumber / totalQuestions) * 100);
 
-  return (
-    <div className="relative overflow-hidden rounded-2xl bg-slate-900/90 border border-slate-800 p-6 shadow-xl backdrop-blur-md">
-      {/* Subtle background glow */}
-      <div className="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
+  const typeStyle =
+    questionType.toLowerCase() === "behavioral"
+      ? "bg-amber-50 text-amber-700 border-amber-100"
+      : questionType.toLowerCase() === "situational"
+      ? "bg-purple-50 text-purple-700 border-purple-100"
+      : "bg-indigo-50 text-indigo-700 border-indigo-100";
 
-      {/* Header bar: Question progress & Meta tags */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-        <div className="flex items-center gap-2">
-          <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 text-xs font-semibold">
-            {questionNumber}
+  return (
+    <section className="caira-surface relative overflow-hidden p-5 sm:p-7 caira-motion-in">
+      <div className="absolute right-0 top-0 h-36 w-36 rounded-full bg-indigo-100/70 blur-3xl" />
+
+      <div className="relative">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="text-xs font-bold text-slate-500">
+              Interview prompt
+            </div>
+            <div className="mt-2 flex items-center gap-2">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#202941] text-xs font-extrabold text-white">
+                {questionNumber}
+              </span>
+              <span className="text-xs font-bold text-slate-500">Question {questionNumber} of {totalQuestions}</span>
+            </div>
           </div>
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Question {questionNumber} of {totalQuestions}
-          </span>
+
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.11em] ${typeStyle}`}>
+              <Brain className="h-3 w-3" /> {questionType}
+            </span>
+            {targetsSkill ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-[10px] font-extrabold text-emerald-700">
+                <Target className="h-3 w-3" /> {targetsSkill}
+              </span>
+            ) : null}
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span
-            className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium border capitalize flex items-center gap-1 ${getTypeStyle(
-              questionType
-            )}`}
-          >
-            <Brain className="w-3 h-3" />
-            {questionType}
-          </span>
+        <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-stone-100">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-emerald-500 transition-[width] duration-500 ease-out"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
 
-          {targetsSkill && (
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-800 text-slate-300 border border-slate-700/80 flex items-center gap-1">
-              <Target className="w-3 h-3 text-emerald-400" />
-              {targetsSkill}
-            </span>
+        <div className="mt-6 rounded-[24px] border border-stone-200 bg-[#fbfaf7] p-4 sm:p-5">
+          <InterviewerVoice
+            jobRole={jobRole}
+            questionNumber={questionNumber}
+            totalQuestions={totalQuestions}
+            questionText={questionText}
+          />
+
+          {isLoadingNext ? (
+            <div className="flex min-h-28 items-center gap-3 py-5 text-slate-500">
+              <Sparkles className="h-5 w-5 animate-spin text-indigo-600" />
+              <p className="text-sm font-semibold">CAIRA is reading your last answer and shaping the follow-up...</p>
+            </div>
+          ) : (
+            <div className="min-h-28 pt-4">
+              <h2 className="max-w-3xl text-xl font-extrabold leading-8 tracking-[-0.035em] text-[#1c2437] sm:text-2xl">
+                “{questionText}”
+              </h2>
+              <p className="mt-3 text-xs font-medium leading-5 text-slate-500">
+                Answer naturally. Specific decisions, trade-offs, evidence, and outcomes give CAIRA more to work with on the next turn.
+              </p>
+            </div>
           )}
         </div>
       </div>
-
-      {/* Progress bar */}
-      <div className="w-full bg-slate-800/80 h-1.5 rounded-full mb-5 overflow-hidden">
-        <div
-          className="bg-gradient-to-r from-indigo-500 to-emerald-400 h-full rounded-full transition-all duration-500 ease-out"
-          style={{ width: `${progressPercent}%` }}
-        />
-      </div>
-
-      {/* AI Interviewer Audio & Dialogue Voice Controller */}
-      <InterviewerVoice
-        jobRole={jobRole}
-        questionNumber={questionNumber}
-        totalQuestions={totalQuestions}
-        questionText={questionText}
-      />
-
-      {/* Question statement */}
-      <div className="min-h-[90px] flex items-start">
-        {isLoadingNext ? (
-          <div className="flex items-center gap-3 text-slate-400 py-4 animate-pulse">
-            <Sparkles className="w-5 h-5 text-indigo-400 animate-spin" />
-            <p className="text-base">CAIRA is crafting your next follow-up question...</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <h2 className="text-lg sm:text-xl font-medium text-slate-100 leading-relaxed">
-              &ldquo;{questionText}&rdquo;
-            </h2>
-            <p className="text-xs text-slate-500">
-              Take your time to structure your response. When ready, answer aloud or edit the text box below.
-            </p>
-          </div>
-        )}
-      </div>
-    </div>
+    </section>
   );
 }

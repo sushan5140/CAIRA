@@ -7,13 +7,19 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isDemoMode, markDemoMode } from "@/lib/demo/client-store";
 import {
   Sparkles,
-  Video,
-  BarChart2,
-  PlusCircle,
+  Home,
+  PlayCircle,
+  History,
   User,
-  ShieldCheck,
   LogOut,
+  ArrowUpRight,
 } from "lucide-react";
+
+const navItems = [
+  { href: "/", label: "Home", icon: Home },
+  { href: "/interview/new", label: "Practice", icon: PlayCircle },
+  { href: "/dashboard", label: "Reports", icon: History },
+];
 
 export function Navbar() {
   const pathname = usePathname();
@@ -23,7 +29,7 @@ export function Navbar() {
 
   const isInterviewSession =
     pathname.startsWith("/interview/") &&
-    !pathname.endsWith("/new") &&
+    pathname !== "/interview/new" &&
     !pathname.endsWith("/report");
 
   useEffect(() => {
@@ -62,108 +68,120 @@ export function Navbar() {
     router.refresh();
   };
 
+  const isActive = (href: string) => {
+    if (href === "/") return pathname === "/";
+    if (href === "/interview/new") return pathname.startsWith("/interview");
+    return pathname.startsWith(href);
+  };
+
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md no-print">
-      <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-6">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-500 to-emerald-400 p-[1.5px] shadow-sm transition-transform duration-200 group-hover:scale-105">
-              <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-indigo-400 transition-colors group-hover:text-emerald-300" />
+    <>
+      <header className="no-print sticky top-0 z-50 h-[76px] border-b border-stone-200/80 bg-[#fbf8f2]/92 backdrop-blur-xl">
+        <div className="mx-auto grid h-full max-w-[1500px] grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-start">
+            <Link href="/" className="group inline-flex min-h-11 items-center gap-3 rounded-2xl">
+              <div className="relative flex h-11 w-11 items-center justify-center rounded-[15px] border border-indigo-200 bg-white shadow-sm transition-transform duration-150 ease-out group-hover:-translate-y-0.5 group-active:scale-[0.97]">
+                <div className="absolute inset-1 rounded-[11px] bg-gradient-to-br from-indigo-100 via-white to-emerald-50" />
+                <Sparkles className="relative h-4.5 w-4.5 text-indigo-600" aria-hidden="true" />
               </div>
-            </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-lg tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
-                CAIRA
-              </span>
-              <span className="text-[10px] text-slate-400 -mt-1 font-medium tracking-wider uppercase">
-                Interview AI
-              </span>
-            </div>
-          </Link>
-
-          {!isInterviewSession && (
-            <nav className="hidden md:flex items-center gap-1 pl-4 border-l border-slate-800/80">
-              <Link
-                href="/dashboard"
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  pathname === "/dashboard"
-                    ? "bg-slate-800 text-white shadow-sm"
-                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
-                }`}
-              >
-                <div className="flex items-center gap-1.5">
-                  <BarChart2 className="w-4 h-4" />
-                  <span>Dashboard</span>
+              <div className="leading-none">
+                <div className="text-lg font-extrabold tracking-[-0.04em] text-[#1c2437]">CAIRA</div>
+                <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                  Interview practice
                 </div>
-              </Link>
-              <Link
-                href="/interview/new"
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  pathname === "/interview/new"
-                    ? "bg-slate-800 text-white shadow-sm"
-                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
-                }`}
-              >
-                <div className="flex items-center gap-1.5">
-                  <Video className="w-4 h-4" />
-                  <span>Setup Interview</span>
-                </div>
-              </Link>
-            </nav>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2 sm:gap-3">
-          {isInterviewSession && (
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/50 border border-emerald-800/50 text-emerald-400 text-xs font-medium">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              <span>Session In Progress</span>
-            </div>
-          )}
-
-          <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-900 border border-slate-800 text-xs text-slate-400">
-            <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Gemini 3.8 default</span>
+              </div>
+            </Link>
           </div>
 
-          <Link
-            href="/interview/new"
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white text-sm font-medium shadow-sm transition-all hover:shadow-indigo-500/20 active:scale-95"
-          >
-            <PlusCircle className="w-4 h-4" />
-            <span className="hidden sm:inline">New Interview</span>
-          </Link>
+          <nav aria-label="Primary" className="hidden items-center rounded-full border border-stone-200 bg-white/82 p-1 shadow-sm md:flex">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={active ? "page" : undefined}
+                  className={`flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-bold transition-[background-color,color,transform] duration-150 ease-out active:scale-[0.98] ${
+                    active
+                      ? "bg-[#202941] text-white"
+                      : "text-slate-500 hover:bg-stone-100 hover:text-slate-900"
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
 
-          {userEmail || demoMode ? (
-            <div className="flex items-center gap-1.5">
-              <div
-                className="hidden xl:flex max-w-52 items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-400"
-                title={userEmail || "Guest practice is stored on this device"}
-              >
-                <User className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                <span className="truncate">{userEmail || "Guest mode"}</span>
+          <div className="flex items-center justify-end gap-2">
+            {isInterviewSession && (
+              <div className="hidden min-h-9 items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 text-[11px] font-bold text-emerald-700 lg:flex">
+                <span className="caira-live-dot h-2 w-2 rounded-full bg-emerald-500" />
+                Live practice
               </div>
-              <button
-                type="button"
-                onClick={handleSignOut}
-                className="p-2 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-slate-900 transition-colors"
-                title={userEmail ? "Sign out" : "Exit guest mode"}
+            )}
+
+            {userEmail || demoMode ? (
+              <div className="hidden items-center gap-2 sm:flex">
+                <div
+                  className="max-w-44 truncate rounded-full border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-slate-500"
+                  title={userEmail || "Guest practice saved on this device"}
+                >
+                  {userEmail || "Guest mode"}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  className="caira-icon-button !rounded-full"
+                  aria-label={userEmail ? "Sign out" : "Exit guest mode"}
+                >
+                  <LogOut className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
+            ) : (
+              <Link
+                href="/login"
+                className="caira-icon-button hidden !rounded-full sm:inline-flex"
+                aria-label="Account"
               >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
-          ) : (
-            <Link
-              href="/login"
-              className="p-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition-colors"
-              title="Account / Login"
-            >
-              <User className="w-4 h-4" />
+                <User className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            )}
+
+            <Link href="/interview/new" className="caira-primary-button !rounded-full !px-4">
+              <span className="hidden sm:inline">Start practice</span>
+              <span className="sm:hidden">Start</span>
+              <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
             </Link>
-          )}
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
+
+      <nav
+        aria-label="Mobile"
+        className="no-print fixed inset-x-3 z-50 grid grid-cols-3 rounded-[24px] border border-stone-200 bg-white/96 p-1.5 shadow-[0_18px_42px_-20px_rgba(31,41,64,0.48)] backdrop-blur-xl md:hidden"
+        style={{ bottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+      >
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const active = isActive(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={active ? "page" : undefined}
+              className={`flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-[18px] text-[10px] font-extrabold transition-[background-color,color,transform] duration-150 ease-out active:scale-[0.97] ${
+                active ? "bg-[#202941] text-white" : "text-slate-500"
+              }`}
+            >
+              <Icon className="h-4 w-4" aria-hidden="true" />
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
+    </>
   );
 }

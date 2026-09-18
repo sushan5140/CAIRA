@@ -1,25 +1,42 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveLocalInterview } from "@/lib/demo/client-store";
 import {
-  Briefcase,
-  FileText,
-  Upload,
-  Sparkles,
+  ArrowLeft,
   ArrowRight,
-  Layers,
-  Settings,
-  AlertCircle,
+  Briefcase,
+  Check,
   FileCheck,
+  FileText,
+  Layers,
+  Sparkles,
+  Upload,
+  WandSparkles,
 } from "lucide-react";
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
+const steps = [
+  { label: "Role", note: "Choose the interview target", icon: Briefcase },
+  { label: "Evidence", note: "Add your resume or background", icon: FileText },
+  { label: "Job brief", note: "Give CAIRA the role context", icon: Layers },
+  { label: "Session", note: "Set the practice length", icon: WandSparkles },
+];
+
+const popularRoles = [
+  "Senior Full-Stack Engineer",
+  "Frontend React Engineer",
+  "Backend & Distributed Systems Engineer",
+  "Product Manager",
+  "Machine Learning Engineer",
+  "Engineering Manager",
+];
+
 export default function NewInterviewPage() {
   const router = useRouter();
-
+  const [activeStep, setActiveStep] = useState(0);
   const [jobRole, setJobRole] = useState("Senior Full-Stack Engineer");
   const [jdText, setJdText] = useState("");
   const [resumeText, setResumeText] = useState("");
@@ -29,14 +46,17 @@ export default function NewInterviewPage() {
   const [loadingMessage, setLoadingMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const popularRoles = [
-    "Senior Full-Stack Engineer",
-    "Frontend React Engineer",
-    "Backend & Distributed Systems Engineer",
-    "Product Manager",
-    "Machine Learning Engineer",
-    "Engineering Manager",
-  ];
+  const completion = useMemo(
+    () => [
+      Boolean(jobRole.trim()),
+      Boolean(resumeFile || resumeText.trim()),
+      Boolean(jdText.trim()),
+      Boolean(targetQuestions),
+    ],
+    [jobRole, resumeFile, resumeText, jdText, targetQuestions]
+  );
+
+  const progress = Math.round(((activeStep + 1) / steps.length) * 100);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -62,10 +82,10 @@ export default function NewInterviewPage() {
     setError(null);
   };
 
-  const handleStartInterview = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleStartInterview = async () => {
     if (!jobRole.trim()) {
-      setError("Please enter or select a job role.");
+      setError("Choose or enter a target role before starting.");
+      setActiveStep(0);
       return;
     }
 
@@ -86,18 +106,15 @@ export default function NewInterviewPage() {
           method: "POST",
           body: formData,
         });
-
         const uploadData = await uploadRes.json();
-        if (!uploadRes.ok) {
-          throw new Error(uploadData.error || "Failed to upload resume");
-        }
+        if (!uploadRes.ok) throw new Error(uploadData.error || "Failed to upload resume");
 
         uploadedResumePath = uploadData.storagePath || undefined;
         uploadedResumeText = uploadData.text || undefined;
         uploadedResumePdfBase64 = uploadData.base64 || undefined;
       }
 
-      setLoadingMessage("Extracting skills & must-haves with CAIRA...");
+      setLoadingMessage("Mapping role skills and interview focus...");
       const res = await fetch("/api/interviews/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -112,11 +129,9 @@ export default function NewInterviewPage() {
       });
 
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to initialize interview");
-      }
+      if (!res.ok) throw new Error(data.error || "Failed to initialize interview");
 
-      setLoadingMessage("Preparing interview room & opening question...");
+      setLoadingMessage("Opening your interview room...");
       saveLocalInterview(data.interview);
       router.push(`/interview/${data.interview.id}`);
     } catch (err: unknown) {
@@ -126,183 +141,319 @@ export default function NewInterviewPage() {
     }
   };
 
-  return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      <div className="space-y-3 mb-8">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-medium">
-          <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-          <span>Interview Configuration</span>
-        </div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-          Set Up Your Mock Interview
-        </h1>
-        <p className="text-sm text-slate-400">
-          Provide your target role, paste the job description, or upload your resume. CAIRA will synthesize key skills and generate personalized questions.
-        </p>
-      </div>
+  const goNext = () => {
+    if (activeStep === 0 && !jobRole.trim()) {
+      setError("Choose or enter a target role first.");
+      return;
+    }
+    setError(null);
+    setActiveStep((step) => Math.min(steps.length - 1, step + 1));
+  };
 
-      <form onSubmit={handleStartInterview} className="space-y-6">
-        {error && (
-          <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800/50 text-rose-300 text-sm flex items-center gap-2.5 animate-in fade-in">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{error}</span>
+  const renderCanvas = () => {
+    if (activeStep === 0) {
+      return (
+        <div className="caira-motion-in" key="role-step">
+          <div className="mb-2 text-sm font-bold text-indigo-600">Step 1 · Target</div>
+          <h1 className="text-3xl font-extrabold tracking-[-0.045em] text-[#1c2437] sm:text-4xl">Who are you interviewing as?</h1>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">The title shapes the seniority, skills, technical depth, and follow-up style CAIRA uses.</p>
+
+          <div className="mt-8">
+            <label htmlFor="jobRole" className="mb-2 block text-xs font-bold text-slate-500">Target role</label>
+            <input
+              id="jobRole"
+              value={jobRole}
+              maxLength={160}
+              onChange={(e) => setJobRole(e.target.value)}
+              className="caira-input !py-4 !text-base !font-semibold"
+              placeholder="e.g. Frontend Engineer"
+            />
           </div>
-        )}
 
-        <div className="rounded-2xl bg-slate-900/80 border border-slate-800 p-6 shadow-xl backdrop-blur-md space-y-4">
-          <div className="flex items-center gap-2 text-sm font-semibold text-white">
-            <Briefcase className="w-4 h-4 text-indigo-400" />
-            <label htmlFor="jobRole">1. Target Job Role / Title *</label>
-          </div>
-
-          <input
-            id="jobRole"
-            type="text"
-            required
-            maxLength={160}
-            value={jobRole}
-            onChange={(e) => setJobRole(e.target.value)}
-            placeholder="e.g. Senior Full-Stack Engineer, Staff Product Manager"
-            className="w-full rounded-xl bg-slate-950/90 border border-slate-800 p-3.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all"
-          />
-
-          <div className="pt-1">
-            <span className="text-xs text-slate-500 block mb-2">Or select a quick role:</span>
-            <div className="flex flex-wrap gap-2">
+          <div className="mt-6">
+            <div className="mb-3 text-xs font-bold text-slate-400">Quick roles</div>
+            <div className="grid gap-2 sm:grid-cols-2">
               {popularRoles.map((role) => (
                 <button
                   type="button"
                   key={role}
                   onClick={() => setJobRole(role)}
-                  className={`text-xs px-3 py-1.5 rounded-lg border transition-all ${
+                  className={`rounded-2xl border p-3 text-left text-sm font-semibold transition-all ${
                     jobRole === role
-                      ? "bg-indigo-600/30 border-indigo-500/50 text-indigo-200"
-                      : "bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                      ? "border-indigo-200 bg-indigo-50 text-indigo-800 shadow-sm"
+                      : "border-stone-200 bg-white text-slate-600 hover:-translate-y-0.5 hover:border-indigo-100 hover:text-slate-900"
                   }`}
                 >
-                  {role}
+                  <div className="flex items-center justify-between gap-3">
+                    <span>{role}</span>
+                    {jobRole === role ? <Check className="h-4 w-4 text-indigo-600" /> : null}
+                  </div>
                 </button>
               ))}
             </div>
           </div>
         </div>
+      );
+    }
 
-        <div className="rounded-2xl bg-slate-900/80 border border-slate-800 p-6 shadow-xl backdrop-blur-md space-y-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-white">
-              <FileText className="w-4 h-4 text-emerald-400" />
-              <span>2. Candidate Resume (Optional)</span>
-            </div>
-            <span className="text-xs text-slate-500">Private account storage when signed in</span>
-          </div>
+    if (activeStep === 1) {
+      return (
+        <div className="caira-motion-in" key="evidence-step">
+          <div className="mb-2 text-sm font-bold text-indigo-600">Step 2 · Evidence</div>
+          <h1 className="text-3xl font-extrabold tracking-[-0.045em] text-[#1c2437] sm:text-4xl">Give the interviewer something real to work with.</h1>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">Optional, but useful: your resume lets CAIRA ask questions around the work you actually claim and the technologies you actually use.</p>
 
-          <div className="relative border-2 border-dashed border-slate-800 hover:border-slate-700 rounded-xl p-5 text-center transition-colors bg-slate-950/40">
+          <div className="relative mt-8 overflow-hidden rounded-[24px] border-2 border-dashed border-stone-200 bg-[#fbfaf7] p-7 text-center transition-all hover:border-indigo-200 hover:bg-indigo-50/30">
             <input
               type="file"
               accept=".pdf,.txt,application/pdf,text/plain"
               onChange={handleFileUpload}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
               aria-label="Upload resume"
             />
-            <div className="flex flex-col items-center justify-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400">
-                <Upload className="w-5 h-5" />
-              </div>
-              {resumeFile ? (
-                <div className="flex items-center gap-2 text-sm text-emerald-400 font-medium">
-                  <FileCheck className="w-4 h-4" />
-                  <span>{resumeFile.name} ({(resumeFile.size / 1024).toFixed(1)} KB)</span>
-                </div>
-              ) : (
-                <div className="space-y-0.5">
-                  <p className="text-xs font-medium text-slate-300">Click to upload a resume</p>
-                  <p className="text-[11px] text-slate-500">PDF or TXT up to 10MB</p>
-                </div>
-              )}
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-indigo-600 shadow-sm">
+              {resumeFile ? <FileCheck className="h-5 w-5 text-emerald-600" /> : <Upload className="h-5 w-5" />}
             </div>
+            {resumeFile ? (
+              <div className="mt-3">
+                <div className="text-sm font-extrabold text-emerald-800">{resumeFile.name}</div>
+                <div className="mt-1 text-xs font-medium text-slate-400">{(resumeFile.size / 1024).toFixed(1)} KB · ready</div>
+              </div>
+            ) : (
+              <div className="mt-3">
+                <div className="text-sm font-extrabold text-[#1c2437]">Drop or choose a resume</div>
+                <div className="mt-1 text-xs text-slate-400">PDF or TXT · up to 10MB</div>
+              </div>
+            )}
           </div>
 
-          {!resumeFile && (
-            <div>
-              <span className="text-xs text-slate-500 block mb-1">Or paste resume summary/bullets:</span>
+          {!resumeFile ? (
+            <div className="mt-5">
+              <div className="mb-2 flex items-center gap-3 text-xs font-bold text-slate-400">
+                <span className="h-px flex-1 bg-stone-200" /> or paste the useful bits <span className="h-px flex-1 bg-stone-200" />
+              </div>
               <textarea
                 value={resumeText}
                 maxLength={40000}
                 onChange={(e) => setResumeText(e.target.value)}
-                placeholder="Paste key experience highlights, current tech stack, or achievements..."
-                rows={3}
-                className="w-full rounded-xl bg-slate-950/90 border border-slate-800 p-3 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all resize-none"
+                rows={7}
+                className="caira-input resize-none !leading-6"
+                placeholder="Experience, projects, technical stack, achievements, leadership examples..."
               />
             </div>
-          )}
+          ) : null}
+        </div>
+      );
+    }
+
+    if (activeStep === 2) {
+      return (
+        <div className="caira-motion-in" key="brief-step">
+          <div className="mb-2 text-sm font-bold text-indigo-600">Step 3 · Context</div>
+          <h1 className="text-3xl font-extrabold tracking-[-0.045em] text-[#1c2437] sm:text-4xl">What does this company actually want?</h1>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">Paste the job description, key requirements, or just the parts you care about. CAIRA will use it to tune the competency map.</p>
+
+          <div className="mt-8 rounded-[24px] border border-stone-200 bg-white p-4 shadow-sm">
+            <textarea
+              value={jdText}
+              maxLength={40000}
+              onChange={(e) => setJdText(e.target.value)}
+              rows={14}
+              className="w-full resize-none border-0 bg-transparent p-2 text-sm leading-7 text-[#1c2437] outline-none placeholder:text-slate-400"
+              placeholder="Paste responsibilities, requirements, team context, or the full job description..."
+            />
+            <div className="flex items-center justify-between border-t border-stone-100 px-2 pt-3 text-[11px] font-semibold text-slate-400">
+              <span>Optional context</span>
+              <span>{jdText.length.toLocaleString()} / 40,000</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="caira-motion-in" key="session-step">
+        <div className="mb-2 text-sm font-bold text-indigo-600">Step 4 · Session</div>
+        <h1 className="text-3xl font-extrabold tracking-[-0.045em] text-[#1c2437] sm:text-4xl">How deep should CAIRA go?</h1>
+        <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">A shorter run is useful for focused practice. A longer run gives the adaptive interviewer more room to probe different competencies.</p>
+
+        <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-5">
+          {[5, 6, 7, 8, 10].map((count) => (
+            <button
+              type="button"
+              key={count}
+              onClick={() => setTargetQuestions(count)}
+              className={`group rounded-[24px] border p-5 text-center transition-all ${
+                targetQuestions === count
+                  ? "border-indigo-200 bg-indigo-50 text-indigo-800 shadow-sm"
+                  : "border-stone-200 bg-white text-slate-600 hover:-translate-y-1 hover:border-indigo-100"
+              }`}
+            >
+              <div className="text-3xl font-extrabold tracking-[-0.05em]">{count}</div>
+              <div className="mt-1 text-[11px] font-bold text-slate-400">Questions</div>
+            </button>
+          ))}
         </div>
 
-        <div className="rounded-2xl bg-slate-900/80 border border-slate-800 p-6 shadow-xl backdrop-blur-md space-y-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-white">
-              <Layers className="w-4 h-4 text-purple-400" />
-              <span>3. Job Description / Requirements (Optional)</span>
-            </div>
-            <span className="text-xs text-slate-500">Improves question precision</span>
-          </div>
-
-          <textarea
-            value={jdText}
-            maxLength={40000}
-            onChange={(e) => setJdText(e.target.value)}
-            placeholder="Paste target job description, required qualifications, or key responsibilities..."
-            rows={4}
-            className="w-full rounded-xl bg-slate-950/90 border border-slate-800 p-3 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all resize-none"
-          />
+        <div className="mt-7 rounded-[24px] border border-emerald-100 bg-emerald-50/70 p-5">
+          <div className="text-xs font-bold text-emerald-700">Ready room</div>
+          <p className="mt-2 text-sm font-semibold leading-6 text-emerald-950">CAIRA will open with one substantive question, then change direction based on your answers instead of revealing a fixed list.</p>
         </div>
+      </div>
+    );
+  };
 
-        <div className="rounded-2xl bg-slate-900/80 border border-slate-800 p-6 shadow-xl backdrop-blur-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-sm font-semibold text-white">
-              <Settings className="w-4 h-4 text-indigo-400" />
-              <span>4. Total Questions</span>
+  return (
+    <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+      {isSubmitting ? (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-[#f8f5ef]/90 px-4 backdrop-blur-md">
+          <div className="caira-surface w-full max-w-md p-7 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[20px] bg-indigo-50 text-indigo-600">
+              <Sparkles className="h-6 w-6 animate-pulse" />
             </div>
-            <p className="text-xs text-slate-400">Select interview length between 5 and 10 questions.</p>
+            <div className="mt-5 text-xl font-extrabold tracking-[-0.035em] text-[#1c2437]">Building your interview room</div>
+            <p className="mt-2 text-sm leading-6 text-slate-500">{loadingMessage || "Preparing the session..."}</p>
+            <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-stone-100">
+              <div className="h-full w-2/3 animate-pulse rounded-full bg-gradient-to-r from-indigo-500 to-emerald-500" />
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="mb-5 flex items-center justify-between gap-4 lg:hidden">
+        <div>
+          <div className="text-xs font-bold text-indigo-600">Interview builder</div>
+          <div className="mt-1 text-sm font-bold text-[#1c2437]">{steps[activeStep].label}</div>
+        </div>
+        <div className="text-xs font-bold text-slate-400">{activeStep + 1} / 4</div>
+      </div>
+
+      {error ? (
+        <div className="mb-4 rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{error}</div>
+      ) : null}
+
+      <div className="grid min-h-[calc(100dvh-130px)] overflow-hidden rounded-[30px] border border-stone-200/90 bg-white/70 shadow-[0_30px_80px_-52px_rgba(31,41,64,0.45)] lg:grid-cols-[230px_minmax(520px,1fr)_320px]">
+        <aside className="hidden border-r border-stone-200 bg-[#202941] p-5 text-white lg:block">
+          <div className="text-xs font-bold text-slate-400">Interview builder</div>
+          <div className="mt-5 space-y-1">
+            {steps.map((step, index) => {
+              const Icon = step.icon;
+              const current = index === activeStep;
+              const done = completion[index] && index < activeStep;
+              return (
+                <button
+                  key={step.label}
+                  type="button"
+                  onClick={() => setActiveStep(index)}
+                  className={`relative flex w-full items-start gap-3 rounded-2xl p-3 text-left transition-all ${current ? "bg-white/10" : "hover:bg-white/5"}`}
+                >
+                  {index < steps.length - 1 ? <span className="absolute left-[26px] top-10 h-8 w-px bg-white/10" /> : null}
+                  <span className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-[11px] font-extrabold ${
+                    done ? "border-emerald-300 bg-emerald-300 text-[#202941]" : current ? "border-white bg-white text-[#202941]" : "border-white/15 bg-white/5 text-slate-400"
+                  }`}>
+                    {done ? <Check className="h-3.5 w-3.5" /> : <Icon className="h-3.5 w-3.5" />}
+                  </span>
+                  <span className="pt-0.5">
+                    <span className={`block text-xs font-extrabold ${current ? "text-white" : "text-slate-300"}`}>{step.label}</span>
+                    <span className="mt-1 block text-[10px] leading-4 text-slate-500">{step.note}</span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
-          <div className="flex items-center gap-3">
-            {[5, 6, 7, 8, 10].map((count) => (
-              <button
-                type="button"
-                key={count}
-                onClick={() => setTargetQuestions(count)}
-                className={`w-10 h-10 rounded-xl text-sm font-semibold border transition-all ${
-                  targetQuestions === count
-                    ? "bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/30"
-                    : "bg-slate-950/70 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800"
-                }`}
-              >
-                {count}
+          <div className="mt-7 rounded-[22px] border border-white/10 bg-white/5 p-4">
+            <div className="text-[11px] font-bold text-indigo-200">Why this flow?</div>
+            <p className="mt-2 text-[11px] leading-5 text-slate-400">One decision at a time keeps setup focused while the coach builds context beside you.</p>
+          </div>
+        </aside>
+
+        <main className="min-w-0 border-stone-200 px-5 py-7 sm:px-8 sm:py-9 lg:border-r lg:px-10 lg:py-10">
+          <div className="mb-8 h-1.5 overflow-hidden rounded-full bg-stone-100 lg:hidden">
+            <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-emerald-500 transition-all duration-300" style={{ width: `${progress}%` }} />
+          </div>
+
+          <div className="mx-auto max-w-[720px]">{renderCanvas()}</div>
+
+          <div className="mx-auto mt-9 flex max-w-[720px] items-center justify-between border-t border-stone-100 pt-5">
+            <button
+              type="button"
+              onClick={() => setActiveStep((step) => Math.max(0, step - 1))}
+              disabled={activeStep === 0}
+              className="caira-secondary-button disabled:pointer-events-none disabled:opacity-35"
+            >
+              <ArrowLeft className="h-4 w-4" /> Back
+            </button>
+
+            {activeStep < steps.length - 1 ? (
+              <button type="button" onClick={goNext} className="caira-primary-button">
+                Continue <ArrowRight className="h-4 w-4" />
               </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="pt-2">
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full flex items-center justify-center gap-2 py-4 px-6 rounded-2xl bg-gradient-to-r from-indigo-500 via-indigo-600 to-emerald-500 hover:from-indigo-600 hover:to-emerald-600 text-white font-semibold text-base shadow-xl shadow-indigo-500/25 transition-all hover:scale-[1.01] active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none"
-          >
-            {isSubmitting ? (
-              <>
-                <Sparkles className="w-5 h-5 animate-spin" />
-                <span>{loadingMessage || "Setting up interview..."}</span>
-              </>
             ) : (
-              <>
-                <span>Enter Interview Room</span>
-                <ArrowRight className="w-5 h-5" />
-              </>
+              <button type="button" onClick={handleStartInterview} className="caira-primary-button">
+                Enter interview room <ArrowRight className="h-4 w-4" />
+              </button>
             )}
-          </button>
+          </div>
+        </main>
+
+        <aside className="hidden bg-[#fbfaf7] p-6 lg:block">
+          <div className="sticky top-[100px]">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
+              <Sparkles className="h-3.5 w-3.5 text-indigo-600" /> CAIRA coach
+            </div>
+            <h2 className="mt-3 text-xl font-extrabold tracking-[-0.035em] text-[#1c2437]">Your interview is taking shape.</h2>
+            <p className="mt-2 text-xs leading-5 text-slate-500">This panel updates as you build the session, so you always know what CAIRA has enough context to use.</p>
+
+            <div className="mt-6 space-y-3">
+              <SummaryRow label="Role" value={jobRole.trim() || "Not chosen"} ready={Boolean(jobRole.trim())} />
+              <SummaryRow label="Resume" value={resumeFile?.name || (resumeText.trim() ? "Background pasted" : "Optional")} ready={Boolean(resumeFile || resumeText.trim())} optional />
+              <SummaryRow label="Job context" value={jdText.trim() ? "Added" : "Optional"} ready={Boolean(jdText.trim())} optional />
+              <SummaryRow label="Length" value={`${targetQuestions} questions`} ready />
+            </div>
+
+            <div className="mt-6 rounded-[22px] border border-indigo-100 bg-indigo-50/70 p-4">
+              <div className="text-[11px] font-bold text-indigo-700">Current focus</div>
+              <p className="mt-2 text-xs font-semibold leading-5 text-indigo-950">{steps[activeStep].note}. You can move between steps without losing anything.</p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleStartInterview}
+              disabled={!jobRole.trim() || isSubmitting}
+              className="caira-primary-button mt-6 w-full disabled:pointer-events-none disabled:opacity-45"
+            >
+              Start with this setup <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+function SummaryRow({
+  label,
+  value,
+  ready,
+  optional = false,
+}: {
+  label: string;
+  value: string;
+  ready: boolean;
+  optional?: boolean;
+}) {
+  return (
+    <div className="rounded-2xl border border-stone-200 bg-white p-3.5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[11px] font-bold text-slate-400">{label}</div>
+          <div className="mt-1 truncate text-xs font-bold text-[#1c2437]">{value}</div>
         </div>
-      </form>
+        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${ready ? "bg-emerald-100 text-emerald-700" : optional ? "bg-stone-100 text-stone-400" : "bg-amber-100 text-amber-700"}`}>
+          {ready ? <Check className="h-3 w-3" /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}
+        </span>
+      </div>
     </div>
   );
 }

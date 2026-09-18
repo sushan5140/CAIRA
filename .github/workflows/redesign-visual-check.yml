@@ -1,0 +1,187 @@
+name: CAIRA Redesign Visual Check
+
+on:
+  push:
+    branches:
+      - redesign/hallium-v4-interactive
+    paths:
+      - .github/workflows/redesign-visual-check.yml
+      - app/**/*.tsx
+      - app/**/*.css
+      - components/**/*.tsx
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  visual-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install app dependencies
+        run: npm ci
+
+      - name: Install Selenium
+        run: pip install selenium==4.35.0
+
+      - name: Start CAIRA
+        run: |
+          npm run dev -- --hostname 127.0.0.1 > /tmp/caira-dev.log 2>&1 &
+          echo $! > /tmp/caira.pid
+          for i in {1..45}; do
+            if curl -fsS http://127.0.0.1:3000/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/caira-dev.log
+          exit 1
+
+      - name: Run desktop and mobile visual journey
+        run: |
+          rm -rf /tmp/caira-shots
+          mkdir -p /tmp/caira-shots
+          python - <<'PY'
+          import time
+          from selenium import webdriver
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.support.ui import WebDriverWait
+          from selenium.webdriver.support import expected_conditions as EC
+          from selenium.webdriver.chrome.options import Options
+
+          base = "http://127.0.0.1:3000"
+
+          def make_driver(width, height):
+              options = Options()
+              options.add_argument("--headless=new")
+              options.add_argument("--no-sandbox")
+              options.add_argument("--disable-dev-shm-usage")
+              options.add_argument(f"--window-size={width},{height}")
+              options.add_argument("--use-fake-ui-for-media-stream")
+              options.add_argument("--use-fake-device-for-media-stream")
+              options.add_argument("--autoplay-policy=no-user-gesture-required")
+              options.set_capability("goog:loggingPrefs", {"browser": "ALL"})
+              return webdriver.Chrome(options=options)
+
+          def settle(driver, delay=0.45):
+              driver.execute_script("document.documentElement.style.scrollBehavior='auto';")
+              time.sleep(delay)
+
+          def click_text(driver, wait, text):
+              el = wait.until(EC.element_to_be_clickable((By.XPATH, f"//button[contains(normalize-space(.), {text!r})] | //a[contains(normalize-space(.), {text!r})]")))
+              driver.execute_script("document.documentElement.style.scrollBehavior='auto'; arguments[0].scrollIntoView({block:'center', behavior:'instant'});", el)
+              time.sleep(0.15)
+              el.click()
+              return el
+
+          desktop = make_driver(1440, 1100)
+          wait = WebDriverWait(desktop, 35)
+          try:
+              desktop.get(base + "/")
+              wait.until(EC.visibility_of_element_located((By.XPATH, "//*[contains(normalize-space(.), 'Practice the interview, not the question bank.')]")))
+              settle(desktop)
+              desktop.save_screenshot("/tmp/caira-shots/01-home-desktop.png")
+
+              click_text(desktop, wait, "ML Engineer")
+              wait.until(EC.visibility_of_element_located((By.XPATH, "//*[contains(normalize-space(.), 'Model reliability')]")))
+              click_text(desktop, wait, "Simulate next")
+              settle(desktop)
+              desktop.save_screenshot("/tmp/caira-shots/02-home-interactive.png")
+
+              desktop.get(base + "/login")
+              click_text(desktop, wait, "Continue as Guest")
+              wait.until(lambda d: "/dashboard" in d.current_url)
+              wait.until(lambda d: "Loading practice history..." not in d.page_source)
+              settle(desktop)
+              desktop.save_screenshot("/tmp/caira-shots/03-dashboard.png")
+
+              desktop.get(base + "/interview/new")
+              role = wait.until(EC.visibility_of_element_located((By.ID, "jobRole")))
+              role.clear()
+              role.send_keys("Machine Learning Engineer")
+              settle(desktop)
+              desktop.save_screenshot("/tmp/caira-shots/04-builder-role.png")
+
+              click_text(desktop, wait, "Continue")
+              wait.until(EC.visibility_of_element_located((By.XPATH, "//*[contains(normalize-space(.), 'Give the interviewer something real to work with.')]")))
+              settle(desktop)
+              desktop.save_screenshot("/tmp/caira-shots/05-builder-evidence.png")
+
+              click_text(desktop, wait, "Continue")
+              wait.until(EC.visibility_of_element_located((By.XPATH, "//*[contains(normalize-space(.), 'What does this company actually want?')]")))
+              settle(desktop)
+              desktop.save_screenshot("/tmp/caira-shots/06-builder-brief.png")
+
+              click_text(desktop, wait, "Continue")
+              wait.until(EC.visibility_of_element_located((By.XPATH, "//*[contains(normalize-space(.), 'How deep should CAIRA go?')]")))
+              click_text(desktop, wait, "5")
+              settle(desktop)
+              desktop.save_screenshot("/tmp/caira-shots/07-builder-session.png")
+
+              click_text(desktop, wait, "Enter interview room")
+              wait.until(lambda d: "/interview/caira-" in d.current_url)
+              wait.until(EC.visibility_of_element_located((By.XPATH, "//*[contains(normalize-space(.), 'Question 1 of 5')]")))
+              settle(desktop, 0.8)
+              desktop.save_screenshot("/tmp/caira-shots/08-room-question.png")
+
+              textarea = wait.until(EC.visibility_of_element_located((By.TAG_NAME, "textarea")))
+              textarea.send_keys("I found that aggregate accuracy was hiding a weak user segment, so I broke performance down by cohort, traced the failure to distribution shift, added per-segment evaluation and a safer fallback, then monitored the change against the original baseline.")
+              click_text(desktop, wait, "Submit answer")
+              wait.until(EC.visibility_of_element_located((By.XPATH, "//*[contains(normalize-space(.), 'Turn evaluation')]")))
+              settle(desktop)
+              desktop.save_screenshot("/tmp/caira-shots/09-room-feedback.png")
+
+              click_text(desktop, wait, "Continue to follow-up")
+              wait.until(EC.visibility_of_element_located((By.XPATH, "//*[contains(normalize-space(.), 'Question 2 of 5')]")))
+              settle(desktop)
+              desktop.save_screenshot("/tmp/caira-shots/10-room-followup.png")
+
+              severe = [e.get("message", "") for e in desktop.get_log("browser") if e.get("level") == "SEVERE" and "favicon" not in e.get("message", "").lower() and "TTS utterance error" not in e.get("message", "")]
+              if severe:
+                  print("Desktop console errors:", severe)
+                  raise AssertionError("Desktop browser console errors detected")
+          finally:
+              desktop.quit()
+
+          mobile = make_driver(390, 844)
+          mwait = WebDriverWait(mobile, 35)
+          try:
+              mobile.get(base + "/")
+              mwait.until(EC.visibility_of_element_located((By.XPATH, "//*[contains(normalize-space(.), 'Practice the interview, not the question bank.')]")))
+              settle(mobile)
+              mobile.save_screenshot("/tmp/caira-shots/11-home-mobile.png")
+              mobile.get(base + "/interview/new")
+              mwait.until(EC.visibility_of_element_located((By.ID, "jobRole")))
+              settle(mobile)
+              mobile.save_screenshot("/tmp/caira-shots/12-builder-mobile.png")
+              severe = [e.get("message", "") for e in mobile.get_log("browser") if e.get("level") == "SEVERE" and "favicon" not in e.get("message", "").lower()]
+              if severe:
+                  print("Mobile console errors:", severe)
+                  raise AssertionError("Mobile browser console errors detected")
+          finally:
+              mobile.quit()
+
+          print("CAIRA REDESIGN VISUAL CHECK PASSED")
+          PY
+
+      - name: Upload visual screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: caira-redesign-screenshots
+          path: /tmp/caira-shots/*.png
+          if-no-files-found: warn
+
+      - name: Show dev log on failure
+        if: failure()
+        run: cat /tmp/caira-dev.log || true

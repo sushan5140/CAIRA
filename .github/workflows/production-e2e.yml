@@ -64,19 +64,22 @@ jobs:
               wait.until(EC.title_contains("CAIRA"))
               source = driver.page_source
               assert "Gemini 1.5" not in source, "Stale Gemini 1.5 copy is still visible"
-              assert "Gemini 3.8" in source, "Expected current Gemini default copy is missing"
+              assert "Practice the interview, not the question bank." in source, "Interactive CAIRA homepage copy is missing"
 
               print("[2/7] Guest mode")
               driver.get(base + "/login")
               click_text("Continue as Guest")
               wait.until(lambda d: "/dashboard" in d.current_url)
 
-              print("[3/7] Interview setup")
+              print("[3/7] Interactive interview setup")
               driver.get(base + "/interview/new")
               role = wait.until(EC.visibility_of_element_located((By.ID, "jobRole")))
               role.clear()
               role.send_keys("Senior Full-Stack Engineer")
-              click_text("Enter Interview Room")
+              click_text("Continue")
+              click_text("Continue")
+              click_text("Continue")
+              click_text("Enter interview room")
               wait.until(lambda d: "/interview/caira-" in d.current_url and "/report" not in d.current_url)
               print("Interview URL:", driver.current_url)
 
@@ -96,12 +99,12 @@ jobs:
                   textarea = wait.until(EC.visibility_of_element_located((By.TAG_NAME, "textarea")))
                   textarea.clear()
                   textarea.send_keys(answer + f" This was my response for question {question_number}.")
-                  click_text("Submit Answer")
-                  wait.until(EC.visibility_of_element_located((By.XPATH, "//*[contains(normalize-space(.), 'Turn Evaluation')]")))
+                  click_text("Submit answer")
+                  wait.until(EC.visibility_of_element_located((By.XPATH, "//*[contains(normalize-space(.), 'Turn evaluation')]")))
                   print(f"Question {question_number} evaluated")
 
                   if question_number < 5:
-                      click_text("Next Question")
+                      click_text("Continue to follow-up")
                       next_number = question_number + 1
                       wait.until(
                           EC.visibility_of_element_located(
@@ -109,7 +112,7 @@ jobs:
                           )
                       )
                   else:
-                      click_text("Complete Interview & View Report")
+                      click_text("Complete interview")
 
               print("[5/7] Final report")
               wait.until(lambda d: "/report" in d.current_url)

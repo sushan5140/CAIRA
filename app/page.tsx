@@ -1,183 +1,252 @@
+"use client";
+
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  Sparkles,
-  Video,
-  Mic,
-  Brain,
-  CheckCircle2,
-  FileCheck,
-  TrendingUp,
   ArrowRight,
-  Shield,
-  Zap,
+  AudioLines,
+  Brain,
+  Check,
+  FileText,
+  Mic,
+  Play,
+  Sparkles,
+  Target,
+  Video,
 } from "lucide-react";
 
+const rolePresets = [
+  {
+    label: "Frontend Engineer",
+    skill: "React architecture",
+    question:
+      "You mentioned improving a slow dashboard. How did you decide whether the bottleneck was rendering, data fetching, or the API itself?",
+  },
+  {
+    label: "ML Engineer",
+    skill: "Model reliability",
+    question:
+      "Your validation metric looks strong overall. What would you inspect first if performance drops sharply for one user segment?",
+  },
+  {
+    label: "Product Manager",
+    skill: "Prioritization",
+    question:
+      "Two customer problems are urgent, but engineering can only solve one this sprint. How would you make and defend the choice?",
+  },
+];
+
+const flow = [
+  { label: "Brief", note: "Role + evidence", icon: FileText },
+  { label: "Practice", note: "Adaptive dialogue", icon: Mic },
+  { label: "Reflect", note: "Turn coaching", icon: Brain },
+  { label: "Report", note: "Readiness map", icon: Target },
+];
+
 export default function HomePage() {
+  const [selectedRole, setSelectedRole] = useState(0);
+  const [previewStep, setPreviewStep] = useState(1);
+  const activeRole = rolePresets[selectedRole];
+
+  const feedback = useMemo(() => {
+    const items = [
+      "Good problem framing",
+      "Add one concrete metric",
+      "Explain the trade-off you rejected",
+    ];
+    return items.slice(0, previewStep + 1);
+  }, [previewStep]);
+
   return (
-    <div className="relative overflow-hidden">
-      {/* Hero Section */}
-      <section className="relative pt-20 pb-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <div className="text-center space-y-6 max-w-3xl mx-auto">
-          {/* Tagline Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-900/90 border border-slate-700/70 shadow-inner text-xs font-medium text-indigo-300">
-            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-            <span>AI-Powered Interview Readiness Platform</span>
-          </div>
-
-          <h1 className="text-4xl sm:text-6xl font-extrabold text-white tracking-tight leading-[1.15]">
-            Master Your Next Interview with{" "}
-            <span className="bg-gradient-to-r from-indigo-400 via-purple-300 to-emerald-400 bg-clip-text text-transparent">
-              Realistic AI Simulation
-            </span>
-          </h1>
-
-          <p className="text-base sm:text-lg text-slate-300 leading-relaxed max-w-2xl mx-auto">
-            Upload your resume and target job description. CAIRA extracts required competencies, conducts an adaptive multi-turn interview via camera & voice, and delivers an in-depth readiness score.
-          </p>
-
-          {/* Action CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-            <Link
-              href="/interview/new"
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-gradient-to-r from-indigo-500 via-indigo-600 to-emerald-500 hover:from-indigo-600 hover:to-emerald-600 text-white font-semibold text-base shadow-xl shadow-indigo-500/20 transition-all hover:scale-[1.02] active:scale-95"
-            >
-              <span>Start Mock Interview</span>
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-
-            <Link
-              href="/dashboard"
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-slate-900 border border-slate-700 hover:bg-slate-800 text-slate-200 font-medium text-base transition-all"
-            >
-              <span>View Past Reports</span>
-            </Link>
-          </div>
-
-          <div className="pt-4 flex items-center justify-center gap-6 text-xs text-slate-400">
-            <div className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>No signup required for demo</span>
+    <div className="overflow-hidden">
+      <section className="mx-auto max-w-[1500px] px-4 pb-16 pt-12 sm:px-6 lg:px-8 lg:pb-24 lg:pt-16">
+        <div className="grid items-center gap-12 lg:grid-cols-[0.9fr_1.1fr]">
+          <div className="max-w-2xl caira-motion-in">
+            <div className="caira-chip mb-5 !border-indigo-100 !bg-indigo-50 !text-indigo-700">
+              <Sparkles className="h-3.5 w-3.5" />
+              Interview practice that reacts to you
             </div>
-            <div className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>100% private local capture</span>
+
+            <h1 className="max-w-xl text-5xl font-extrabold leading-[0.98] tracking-[-0.06em] text-[#1c2437] sm:text-6xl lg:text-[72px]">
+              Practice the interview, not the question bank.
+            </h1>
+            <p className="mt-6 max-w-xl text-base leading-7 text-slate-600 sm:text-lg">
+              CAIRA turns your role, resume, and answers into a live interview room that adapts after every response and shows you what to improve while the conversation is still fresh.
+            </p>
+
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Link href="/interview/new" className="caira-primary-button !px-6 !py-3.5">
+                Start a practice interview
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link href="/dashboard" className="caira-secondary-button !px-6 !py-3.5">
+                Open my reports
+              </Link>
+            </div>
+
+            <div className="mt-8 flex flex-wrap gap-3 text-xs font-semibold text-slate-500">
+              <span className="inline-flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-600" /> Guest mode available</span>
+              <span className="inline-flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-600" /> Voice + typed answers</span>
+              <span className="inline-flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-600" /> 5–10 adaptive turns</span>
             </div>
           </div>
-        </div>
 
-        {/* Live Interactive Preview Card Mockup */}
-        <div className="mt-16 relative max-w-4xl mx-auto">
-          <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-indigo-500 to-emerald-500 opacity-20 blur-xl pointer-events-none" />
-          <div className="relative rounded-2xl bg-slate-900/90 border border-slate-800 p-6 shadow-2xl backdrop-blur-md">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-rose-500/80" />
-                <span className="w-3 h-3 rounded-full bg-amber-500/80" />
-                <span className="w-3 h-3 rounded-full bg-emerald-500/80" />
-                <span className="text-slate-400 ml-2 font-mono">caira.interview-room/live</span>
+          <div className="relative caira-motion-in lg:pl-6" style={{ animationDelay: "100ms" }}>
+            <div className="absolute -left-5 top-14 hidden h-24 w-24 rounded-full bg-amber-200/35 blur-2xl lg:block" />
+            <div className="caira-surface relative overflow-hidden p-3 sm:p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 px-2 pb-3">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
+                  <span className="caira-live-dot h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                  Live practice preview
+                </div>
+                <span className="rounded-full bg-[#f4f0e8] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                  Adaptive
+                </span>
               </div>
-              <span className="text-emerald-400 bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-800/40">
-                Adaptive Evaluator • Gemini 3.8 Default
-              </span>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6">
-              {/* Camera Preview Mock */}
-              <div className="rounded-xl bg-slate-950 border border-slate-800 p-4 flex flex-col justify-between min-h-[180px]">
-                <div className="flex items-center justify-between text-[11px] text-slate-400">
-                  <span className="flex items-center gap-1.5 text-emerald-400">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    Webcam Active
-                  </span>
-                  <span>1080p</span>
-                </div>
-                <div className="flex flex-col items-center justify-center my-4 text-slate-500">
-                  <Video className="w-8 h-8 text-slate-600 mb-1" />
-                  <span className="text-xs">Live Candidate Stream</span>
-                </div>
-                <div className="flex items-center justify-between text-[11px] text-slate-400 bg-slate-900/80 px-2 py-1 rounded-lg">
-                  <span className="flex items-center gap-1">
-                    <Mic className="w-3 h-3 text-emerald-400" /> Mic Connected
-                  </span>
-                  <div className="flex items-center gap-0.5">
-                    <span className="w-1 h-3 bg-emerald-400 rounded-full" />
-                    <span className="w-1 h-4 bg-emerald-400 rounded-full" />
-                    <span className="w-1 h-2 bg-emerald-400 rounded-full" />
+              <div className="grid gap-3 pt-3 lg:grid-cols-[190px_1fr_220px]">
+                <aside className="rounded-[22px] bg-[#202941] p-4 text-white">
+                  <div className="text-xs font-bold text-slate-500">Interview rail</div>
+                  <div className="mt-4 space-y-3">
+                    {[1, 2, 3, 4, 5].map((step) => (
+                      <button
+                        key={step}
+                        type="button"
+                        onClick={() => setPreviewStep(Math.min(2, Math.max(0, step - 1)))}
+                        className="flex w-full items-center gap-3 text-left"
+                      >
+                        <span className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold transition-all ${
+                          step <= previewStep + 1 ? "bg-white text-[#202941]" : "bg-white/10 text-slate-400"
+                        }`}>
+                          {step <= previewStep ? <Check className="h-3 w-3" /> : step}
+                        </span>
+                        <span className={step === previewStep + 1 ? "text-xs font-bold text-white" : "text-xs text-slate-400"}>
+                          Question {step}
+                        </span>
+                      </button>
+                    ))}
                   </div>
-                </div>
-              </div>
+                  <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-3">
+                    <div className="flex items-center gap-2 text-[11px] font-bold text-emerald-300">
+                      <Video className="h-3.5 w-3.5" /> Camera ready
+                    </div>
+                    <div className="mt-2 flex items-center gap-2 text-[11px] text-slate-400">
+                      <Mic className="h-3.5 w-3.5" /> Voice connected
+                    </div>
+                  </div>
+                </aside>
 
-              {/* Dynamic Q&A Mock */}
-              <div className="md:col-span-2 space-y-4 flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 font-semibold">
-                      Question 2 of 5
+                <main className="rounded-[22px] border border-stone-100 bg-[#fbfaf7] p-5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-indigo-100 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.12em] text-indigo-700">
+                      Question {previewStep + 1} of 5
                     </span>
-                    <span className="text-xs text-slate-400">Technical • Distributed Architecture</span>
+                    <span className="text-[11px] font-semibold text-slate-400">{activeRole.skill}</span>
                   </div>
-                  <h3 className="text-base font-medium text-slate-100 leading-snug">
-                    &ldquo;You mentioned migrating from REST to gRPC for service-to-service calls. How did you handle schema versioning and backward compatibility during zero-downtime deployments?&rdquo;
-                  </h3>
-                </div>
-
-                <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 text-xs text-slate-300">
-                  <span className="text-indigo-400 font-medium block mb-1">Turn Evaluation:</span>
-                  <p className="italic text-slate-400">
-                    &ldquo;Strong explanation of Protobuf field tagging and deprecation rules. Score: 9/10.&rdquo;
+                  <p className="mt-5 text-lg font-bold leading-7 tracking-[-0.025em] text-[#1c2437]">
+                    “{activeRole.question}”
                   </p>
-                </div>
+                  <div className="mt-5 rounded-2xl border border-stone-200 bg-white p-3">
+                    <div className="mb-2 flex items-center gap-2 text-[11px] font-bold text-slate-500">
+                      <AudioLines className="h-3.5 w-3.5 text-indigo-600" /> Your answer
+                    </div>
+                    <div className="h-2 w-[84%] rounded-full bg-stone-100" />
+                    <div className="mt-2 h-2 w-[61%] rounded-full bg-stone-100" />
+                    <div className="mt-4 flex items-center justify-between">
+                      <div className="flex gap-1">
+                        {[12, 20, 15, 24, 10].map((height, index) => (
+                          <span key={index} className="w-1.5 rounded-full bg-indigo-400" style={{ height }} />
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewStep((current) => (current + 1) % 3)}
+                        className="rounded-full bg-[#202941] px-3 py-1.5 text-[10px] font-bold text-white transition-transform active:scale-95"
+                      >
+                        Simulate next
+                      </button>
+                    </div>
+                  </div>
+                </main>
+
+                <aside className="rounded-[22px] border border-stone-200 bg-white p-4">
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
+                    <Brain className="h-3.5 w-3.5 text-indigo-600" /> Adaptive coach
+                  </div>
+                  <div className="mt-4 rounded-2xl bg-emerald-50 p-3">
+                    <div className="text-[11px] font-bold text-emerald-700">Live signal</div>
+                    <p className="mt-1 text-xs font-semibold leading-5 text-emerald-900">Your structure is clear. Push the evidence one step further.</p>
+                  </div>
+                  <div className="mt-4 space-y-2">
+                    {feedback.map((item) => (
+                      <div key={item} className="flex gap-2 text-[11px] leading-4 text-slate-600">
+                        <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-400" />
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                </aside>
               </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              {rolePresets.map((role, index) => (
+                <button
+                  key={role.label}
+                  type="button"
+                  onClick={() => setSelectedRole(index)}
+                  className={`rounded-full border px-3 py-2 text-xs font-bold transition-all ${
+                    selectedRole === index
+                      ? "border-indigo-200 bg-indigo-100 text-indigo-700"
+                      : "border-stone-200 bg-white/70 text-slate-500 hover:bg-white"
+                  }`}
+                >
+                  {role.label}
+                </button>
+              ))}
             </div>
           </div>
         </div>
       </section>
 
-      {/* Feature Steps Section */}
-      <section className="py-20 border-t border-slate-800/80 bg-slate-950/40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
-            <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-              Designed for Realistic, High-Stakes Preparation
-            </h2>
-            <p className="text-sm text-slate-400">
-              Unlike static question banks, CAIRA listens to your specific answers and probes deeper like a senior hiring manager.
-            </p>
+      <section className="border-y border-stone-200/80 bg-white/45">
+        <div className="mx-auto max-w-[1300px] px-4 py-14 sm:px-6 lg:px-8">
+          <div className="mb-9 max-w-xl">
+            <div className="text-sm font-bold text-indigo-600">One connected practice loop</div>
+            <h2 className="mt-2 text-3xl font-extrabold tracking-[-0.045em] text-[#1c2437]">Every screen should move you forward.</h2>
+            <p className="mt-3 text-sm leading-6 text-slate-600">CAIRA keeps context visible while you move from role setup to adaptive questions, coaching, and a final readiness map.</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Step 1 */}
-            <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-6 space-y-4 hover:border-indigo-500/30 transition-colors">
-              <div className="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
-                <FileCheck className="w-6 h-6" />
-              </div>
-              <h3 className="text-lg font-semibold text-white">1. Role & Resume Extraction</h3>
-              <p className="text-sm text-slate-400 leading-relaxed">
-                Provide your target role and upload your resume or paste the JD. Gemini extracts core competencies, seniority signals, and focus themes.
-              </p>
-            </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {flow.map((item, index) => {
+              const Icon = item.icon;
+              return (
+                <div key={item.label} className="group caira-surface-soft relative overflow-hidden p-5 transition-all duration-200 hover:-translate-y-1 hover:bg-white">
+                  <div className="flex items-center justify-between">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+                      <Icon className="h-4.5 w-4.5" />
+                    </div>
+                    <span className="text-xs font-extrabold text-stone-300">0{index + 1}</span>
+                  </div>
+                  <div className="mt-5 text-base font-extrabold tracking-[-0.03em] text-[#1c2437]">{item.label}</div>
+                  <div className="mt-1 text-xs font-medium text-slate-500">{item.note}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
 
-            {/* Step 2 */}
-            <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-6 space-y-4 hover:border-indigo-500/30 transition-colors">
-              <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-                <Brain className="w-6 h-6" />
-              </div>
-              <h3 className="text-lg font-semibold text-white">2. Adaptive AI Interview</h3>
-              <p className="text-sm text-slate-400 leading-relaxed">
-                Experience dynamic questions generated turn-by-turn. Speak naturally with the Web Speech API or type answers, framed by your local camera preview.
-              </p>
-            </div>
-
-            {/* Step 3 */}
-            <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-6 space-y-4 hover:border-indigo-500/30 transition-colors">
-              <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
-                <TrendingUp className="w-6 h-6" />
-              </div>
-              <h3 className="text-lg font-semibold text-white">3. Actionable Readiness Report</h3>
-              <p className="text-sm text-slate-400 leading-relaxed">
-                Receive an overall readiness score (0–100), key strengths, gaps, per-skill analysis, and turn-by-turn feedback that you can print or export to PDF.
-              </p>
-            </div>
+      <section className="mx-auto max-w-[1100px] px-4 py-16 text-center sm:px-6 lg:px-8">
+        <div className="caira-surface relative overflow-hidden px-6 py-12 sm:px-12">
+          <div className="absolute left-1/2 top-0 h-28 w-80 -translate-x-1/2 rounded-full bg-indigo-100 blur-3xl" />
+          <div className="relative">
+            <Play className="mx-auto h-8 w-8 text-indigo-600" />
+            <h2 className="mx-auto mt-4 max-w-2xl text-3xl font-extrabold tracking-[-0.045em] text-[#1c2437] sm:text-4xl">The next click should feel like entering a room, not filling another form.</h2>
+            <Link href="/interview/new" className="caira-primary-button mt-7 !px-7 !py-3.5">
+              Build my interview
+              <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
         </div>
       </section>

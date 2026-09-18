@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
-import { Mic, MicOff, Keyboard, Volume2, Sparkles, AlertCircle } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AlertCircle, Keyboard, Mic, MicOff, Sparkles, Volume2 } from "lucide-react";
 
 interface MicRecorderProps {
   onTranscriptChange: (transcript: string) => void;
@@ -66,6 +66,7 @@ export function MicRecorder({
 
   const startAudioFeedback = async () => {
     stopAudioFeedback();
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioStreamRef.current = stream;
@@ -92,13 +93,14 @@ export function MicRecorder({
       };
 
       animFrameRef.current = requestAnimationFrame(updateMeter);
-    } catch (err) {
-      console.warn("Could not start audio meter:", err);
+    } catch (error) {
+      console.warn("Could not start audio meter:", error);
     }
   };
 
   const startListening = async () => {
     setErrorMessage(null);
+
     const SpeechRecognition =
       typeof window !== "undefined"
         ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
@@ -114,14 +116,17 @@ export function MicRecorder({
         try {
           const permissionStream = await navigator.mediaDevices.getUserMedia({ audio: true });
           permissionStream.getTracks().forEach((track) => track.stop());
-        } catch (permErr: any) {
-          if (permErr?.name === "NotAllowedError" || permErr?.name === "PermissionDeniedError") {
+        } catch (permissionError: any) {
+          if (
+            permissionError?.name === "NotAllowedError" ||
+            permissionError?.name === "PermissionDeniedError"
+          ) {
             setErrorMessage(
-              "Microphone access denied. Please allow microphone permissions in your browser address bar."
+              "Microphone access is blocked. Allow it from your browser's site controls, then retry."
             );
             return;
           }
-          throw permErr;
+          throw permissionError;
         }
       }
 
@@ -165,22 +170,26 @@ export function MicRecorder({
           const full = `${base ? `${base} ` : ""}${accumulatedFinalRef.current.trim()}`;
           onTranscriptChangeRef.current(full);
         }
+
         setInterimText(currentInterim);
       };
 
       recognition.onerror = (event: any) => {
         console.warn("Speech recognition error:", event.error);
+
         if (event.error === "no-speech" || event.error === "aborted") return;
+
         if (event.error === "not-allowed" || event.error === "service-not-allowed") {
           setErrorMessage(
-            "Microphone access denied. Please allow microphone permissions from your browser's site controls."
+            "Microphone access is blocked. Allow it from your browser's site controls, then retry."
           );
           isListeningRef.current = false;
           setIsListening(false);
           stopAudioFeedback();
           return;
         }
-        setErrorMessage("Voice recognition stopped unexpectedly. You can retry or type your answer.");
+
+        setErrorMessage("Voice recognition stopped unexpectedly. You can retry or keep typing.");
       };
 
       recognition.onend = () => {
@@ -188,7 +197,7 @@ export function MicRecorder({
           try {
             recognition.start();
           } catch {
-            setTimeout(() => {
+            window.setTimeout(() => {
               if (isListeningRef.current && recognitionRef.current) {
                 try {
                   recognitionRef.current.start();
@@ -208,9 +217,9 @@ export function MicRecorder({
       setIsListening(true);
       recognition.start();
       await startAudioFeedback();
-    } catch (err: unknown) {
-      console.error("Could not start speech recognition:", err);
-      setErrorMessage(err instanceof Error ? err.message : "Failed to initialize microphone.");
+    } catch (error: unknown) {
+      console.error("Could not start speech recognition:", error);
+      setErrorMessage(error instanceof Error ? error.message : "Failed to initialize microphone.");
       setIsListening(false);
       isListeningRef.current = false;
       stopAudioFeedback();
@@ -250,86 +259,96 @@ export function MicRecorder({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          {isSupported ? (
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {isSupported ? (
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={toggleListening}
               disabled={isEvaluating}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm active:scale-95 ${
+              aria-pressed={isListening}
+              className={`inline-flex min-h-11 items-center gap-2 rounded-xl border px-4 text-sm font-bold transition-[transform,background-color,border-color,color] duration-150 ease-out active:scale-[0.97] disabled:pointer-events-none disabled:opacity-45 ${
                 isListening
-                  ? "bg-rose-500/25 border border-rose-500/50 text-rose-300 hover:bg-rose-500/35 ring-2 ring-rose-500/30 animate-pulse"
-                  : "bg-indigo-600/25 border border-indigo-500/40 text-indigo-200 hover:bg-indigo-600/35 hover:text-white"
+                  ? "border-rose-200 bg-rose-50 text-rose-700"
+                  : "border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
               }`}
             >
               {isListening ? (
                 <>
-                  <MicOff className="w-4 h-4 text-rose-400" />
-                  <span>Stop Recording</span>
+                  <MicOff className="h-4 w-4" aria-hidden="true" />
+                  Stop voice
                 </>
               ) : (
                 <>
-                  <Mic className="w-4 h-4 text-indigo-400" />
-                  <span>Answer with Voice</span>
+                  <Mic className="h-4 w-4" aria-hidden="true" />
+                  Answer with voice
                 </>
               )}
             </button>
-          ) : (
-            <div className="flex items-center gap-1.5 text-xs text-amber-400/90 bg-amber-950/40 px-3 py-1.5 rounded-lg border border-amber-800/40">
-              <Keyboard className="w-3.5 h-3.5" />
-              <span>Voice recognition is unavailable in this browser. Type your answer below.</span>
-            </div>
-          )}
 
-          {isListening && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-emerald-400 shadow-sm">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              <span>Listening & transcribing...</span>
-              <div className="flex items-center gap-0.5 ml-1 h-3.5">
-                {[14, 18, 12].map((maxHeight, index) => (
-                  <span
-                    key={index}
-                    className="w-1 bg-emerald-400 rounded-full transition-all duration-75"
-                    style={{ height: `${Math.max(3, (audioLevel / 100) * maxHeight)}px` }}
-                  />
-                ))}
+            {isListening ? (
+              <div
+                className="flex min-h-11 items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3 text-xs font-bold text-emerald-800"
+                aria-live="polite"
+              >
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                Listening
+                <div className="ml-1 flex h-5 items-end gap-1" aria-hidden="true">
+                  {[10, 16, 12].map((maxHeight, index) => (
+                    <span
+                      key={index}
+                      className="w-1 rounded-full bg-emerald-500 transition-[height] duration-75"
+                      style={{ height: `${Math.max(4, (audioLevel / 100) * maxHeight)}px` }}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            ) : null}
+          </div>
+        ) : (
+          <div className="flex min-h-11 items-center gap-2 rounded-xl border border-amber-100 bg-amber-50 px-3 text-xs font-semibold text-amber-800">
+            <Keyboard className="h-4 w-4 shrink-0" aria-hidden="true" />
+            Voice input is unavailable here. Type your answer below.
+          </div>
+        )}
 
-        <div className="text-xs text-slate-400 flex items-center gap-1.5">
-          <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-          <span>Speak naturally — your transcript remains editable</span>
+        <div className="flex items-center gap-1.5 text-[11px] font-semibold leading-4 text-slate-400">
+          <Sparkles className="h-3.5 w-3.5 shrink-0 text-indigo-500" aria-hidden="true" />
+          Transcript stays editable
         </div>
       </div>
 
-      {errorMessage && (
-        <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-800/60 text-rose-300 text-xs flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+      {errorMessage ? (
+        <div
+          role="alert"
+          className="flex flex-col gap-3 rounded-2xl border border-rose-100 bg-rose-50 p-3 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="flex items-start gap-2 text-xs font-semibold leading-5 text-rose-700">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
             <span>{errorMessage}</span>
           </div>
           <button
             type="button"
             onClick={startListening}
-            className="px-2.5 py-1 rounded bg-rose-900/60 hover:bg-rose-900 text-rose-200 text-[11px] font-medium transition-colors shrink-0"
+            className="inline-flex min-h-10 items-center justify-center rounded-xl border border-rose-200 bg-white px-3 text-xs font-bold text-rose-700 transition-colors duration-150 hover:bg-rose-100"
           >
-            Try Again
+            Try again
           </button>
         </div>
-      )}
+      ) : null}
 
-      {isListening && interimText && (
-        <div className="p-3 rounded-xl bg-indigo-950/50 border border-indigo-500/30 text-xs text-indigo-200 flex items-start gap-2 backdrop-blur-sm animate-in fade-in duration-150">
-          <Volume2 className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5 animate-pulse" />
+      {isListening && interimText ? (
+        <div
+          className="flex items-start gap-2 rounded-2xl border border-indigo-100 bg-indigo-50/70 p-3 text-xs leading-5 text-indigo-950"
+          aria-live="polite"
+        >
+          <Volume2 className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" aria-hidden="true" />
           <div>
-            <span className="font-semibold text-indigo-300 mr-1.5">Hearing you:</span>
-            <span className="italic text-slate-100">&ldquo;{interimText}&rdquo;</span>
+            <span className="font-extrabold text-indigo-700">Hearing you: </span>
+            <span className="font-medium">&ldquo;{interimText}&rdquo;</span>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
