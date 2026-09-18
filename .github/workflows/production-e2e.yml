@@ -1,6 +1,9 @@
 name: CAIRA Production E2E
 
 on:
+  push:
+    branches:
+      - qa/live-production-frontend
   workflow_dispatch:
 
 permissions:
