@@ -140,13 +140,6 @@
       filter var(--duration-fast) ease;
   }
 
-  .caira-primary-button:hover {
-    transform: translateY(-1px);
-    background: #2a3552;
-    box-shadow: 0 16px 34px -18px rgba(32, 41, 65, 0.56);
-    filter: none;
-  }
-
   .caira-primary-button:active {
     transform: scale(0.975);
   }
@@ -160,11 +153,6 @@
       border-color var(--duration-fast) ease,
       background-color var(--duration-fast) ease,
       color var(--duration-fast) ease;
-  }
-
-  .caira-secondary-button:hover {
-    border-color: rgba(91, 87, 217, 0.25);
-    background: #fbfaff;
   }
 
   .caira-secondary-button:active {
@@ -204,14 +192,27 @@
       border-color var(--duration-fast) ease;
   }
 
+  .caira-icon-button:active {
+    transform: scale(0.94);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .caira-primary-button:hover {
+    transform: translateY(-1px);
+    background: #2a3552;
+    box-shadow: 0 16px 34px -18px rgba(32, 41, 65, 0.56);
+  }
+
+  .caira-secondary-button:hover {
+    border-color: rgba(91, 87, 217, 0.25);
+    background: #fbfaff;
+  }
+
   .caira-icon-button:hover {
     border-color: rgba(91, 87, 217, 0.22);
     color: var(--indigo);
     background: #fbfaff;
-  }
-
-  .caira-icon-button:active {
-    transform: scale(0.94);
   }
 }
 
