@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Camera, CameraOff, Mic, MicOff, AlertCircle } from "lucide-react";
+import { Camera, CameraOff, Mic, MicOff, ShieldCheck } from "lucide-react";
 
 interface CameraPreviewProps {
   onAudioLevelChange?: (level: number) => void;
@@ -14,7 +14,7 @@ export function CameraPreview({ onAudioLevelChange, className = "" }: CameraPrev
   const [cameraActive, setCameraActive] = useState(true);
   const [micActive, setMicActive] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [audioLevel, setAudioLevel] = useState<number>(0);
+  const [audioLevel, setAudioLevel] = useState(0);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -34,16 +34,14 @@ export function CameraPreview({ onAudioLevelChange, className = "" }: CameraPrev
         setStream(mediaStream);
         setError(null);
 
-        if (videoRef.current) {
-          videoRef.current.srcObject = mediaStream;
-        }
+        if (videoRef.current) videoRef.current.srcObject = mediaStream;
 
-        // Set up audio analyser for visual feedback
         try {
           const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
           if (AudioContextClass) {
             const ctx = new AudioContextClass();
             audioContextRef.current = ctx;
+
             const analyser = ctx.createAnalyser();
             analyser.fftSize = 64;
             analyserRef.current = analyser;
@@ -56,10 +54,10 @@ export function CameraPreview({ onAudioLevelChange, className = "" }: CameraPrev
             const checkAudio = () => {
               if (!analyserRef.current) return;
               analyserRef.current.getByteFrequencyData(dataArray);
+
               let sum = 0;
-              for (let i = 0; i < dataArray.length; i++) {
-                sum += dataArray[i];
-              }
+              for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+
               const average = sum / dataArray.length;
               const normalized = Math.min(100, Math.round((average / 128) * 100));
               setAudioLevel(normalized);
@@ -69,12 +67,12 @@ export function CameraPreview({ onAudioLevelChange, className = "" }: CameraPrev
 
             animFrameRef.current = requestAnimationFrame(checkAudio);
           }
-        } catch (e) {
-          console.warn("Web Audio API not initialized:", e);
+        } catch (audioError) {
+          console.warn("Web Audio API not initialized:", audioError);
         }
-      } catch (err: any) {
-        console.warn("Could not access camera/mic:", err.name, err.message);
-        setError("Camera preview unavailable (browser permission or device busy). Using virtual mock view.");
+      } catch (mediaError: any) {
+        console.warn("Could not access camera/mic:", mediaError?.name, mediaError?.message);
+        setError("Camera preview is unavailable. You can still complete the interview by voice or text.");
       }
     }
 
@@ -83,125 +81,118 @@ export function CameraPreview({ onAudioLevelChange, className = "" }: CameraPrev
     return () => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       if (audioContextRef.current) audioContextRef.current.close();
-      if (currentStream) {
-        currentStream.getTracks().forEach((track) => track.stop());
-      }
+      if (currentStream) currentStream.getTracks().forEach((track) => track.stop());
     };
   }, [onAudioLevelChange]);
 
   const toggleCamera = () => {
     if (stream) {
-      const videoTracks = stream.getVideoTracks();
-      videoTracks.forEach((t) => (t.enabled = !cameraActive));
-      setCameraActive(!cameraActive);
-    } else {
-      setCameraActive(!cameraActive);
+      stream.getVideoTracks().forEach((track) => {
+        track.enabled = !cameraActive;
+      });
     }
+    setCameraActive((active) => !active);
   };
 
   const toggleMic = () => {
     if (stream) {
-      const audioTracks = stream.getAudioTracks();
-      audioTracks.forEach((t) => (t.enabled = !micActive));
-      setMicActive(!micActive);
-    } else {
-      setMicActive(!micActive);
+      stream.getAudioTracks().forEach((track) => {
+        track.enabled = !micActive;
+      });
     }
+    setMicActive((active) => !active);
   };
 
   return (
-    <div className={`relative overflow-hidden rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl flex flex-col justify-between ${className}`}>
-      {/* Video element */}
-      <div className="relative w-full h-full min-h-[220px] sm:min-h-[260px] bg-slate-950 flex items-center justify-center">
+    <section className={`overflow-hidden rounded-[20px] border border-white/10 bg-white/5 p-2 ${
+      className
+    }`} aria-label="Local camera preview">
+      <div className="relative aspect-[4/3] overflow-hidden rounded-[15px] bg-[#151b2a]">
         {cameraActive && !error ? (
           <video
             ref={videoRef}
             autoPlay
             playsInline
             muted
-            className="w-full h-full object-cover scale-x-[-1] rounded-2xl"
+            className="h-full w-full scale-x-[-1] object-cover"
           />
         ) : (
-          <div className="flex flex-col items-center justify-center text-slate-500 gap-2 p-4 text-center">
-            <div className="w-14 h-14 rounded-full bg-slate-800/80 flex items-center justify-center border border-slate-700">
-              <CameraOff className="w-6 h-6 text-slate-400" />
+          <div className="flex h-full flex-col items-center justify-center gap-2 bg-[#f2eee7] p-4 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-stone-200 bg-white text-slate-500 shadow-sm">
+              <CameraOff className="h-5 w-5" aria-hidden="true" />
             </div>
-            <p className="text-xs font-medium text-slate-400">
-              {error ? "Virtual Mode Active" : "Camera Paused"}
+            <p className="text-xs font-extrabold text-[#1c2437]">
+              {error ? "Camera unavailable" : "Camera paused"}
             </p>
-            {error && (
-              <p className="text-[11px] text-slate-500 max-w-[200px] leading-tight">
-                Microphone / typed speech still functional.
-              </p>
-            )}
+            <p className="max-w-[180px] text-[10px] font-medium leading-4 text-slate-500">
+              {error || "Your interview can continue normally."}
+            </p>
           </div>
         )}
 
-        {/* Top bar overlay */}
-        <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-950/70 backdrop-blur-md border border-white/10 text-[11px] font-medium text-slate-300">
+        <div className="pointer-events-none absolute inset-x-2.5 top-2.5 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 rounded-full border border-white/15 bg-[#151b2a]/72 px-2.5 py-1 text-[9px] font-bold text-white backdrop-blur-md">
             <span
-              className={`w-2 h-2 rounded-full ${
-                cameraActive && !error ? "bg-emerald-400 animate-pulse" : "bg-amber-400"
+              className={`h-1.5 w-1.5 rounded-full ${
+                cameraActive && !error ? "bg-emerald-400" : "bg-amber-300"
               }`}
             />
-            <span>{cameraActive && !error ? "Candidate Cam" : "Paused"}</span>
+            {cameraActive && !error ? "Camera on" : "Preview paused"}
           </div>
 
-          {/* Real-time audio waveform feedback */}
-          {micActive && (
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-950/70 backdrop-blur-md border border-white/10">
-              <div
-                className="w-1 bg-emerald-400 rounded-full transition-all duration-75"
-                style={{ height: `${Math.max(4, (audioLevel / 100) * 16)}px` }}
-              />
-              <div
-                className="w-1 bg-emerald-400 rounded-full transition-all duration-75"
-                style={{ height: `${Math.max(6, (audioLevel / 100) * 22)}px` }}
-              />
-              <div
-                className="w-1 bg-emerald-400 rounded-full transition-all duration-75"
-                style={{ height: `${Math.max(4, (audioLevel / 100) * 14)}px` }}
-              />
+          {micActive ? (
+            <div
+              className="flex h-6 items-end gap-0.5 rounded-full border border-white/15 bg-[#151b2a]/72 px-2 py-1 backdrop-blur-md"
+              aria-hidden="true"
+            >
+              {[8, 13, 9].map((maxHeight, index) => (
+                <span
+                  key={index}
+                  className="w-0.5 rounded-full bg-emerald-300 transition-[height] duration-75"
+                  style={{ height: `${Math.max(3, (audioLevel / 100) * maxHeight)}px` }}
+                />
+              ))}
             </div>
-          )}
-        </div>
-
-        {/* Bottom controls overlay */}
-        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={toggleCamera}
-              className={`p-2 rounded-xl backdrop-blur-md text-xs font-medium transition-all ${
-                cameraActive
-                  ? "bg-slate-950/70 text-slate-200 hover:bg-slate-800 border border-white/10"
-                  : "bg-rose-500/80 text-white hover:bg-rose-600"
-              }`}
-              title={cameraActive ? "Turn camera off" : "Turn camera on"}
-            >
-              {cameraActive ? <Camera className="w-4 h-4" /> : <CameraOff className="w-4 h-4" />}
-            </button>
-
-            <button
-              type="button"
-              onClick={toggleMic}
-              className={`p-2 rounded-xl backdrop-blur-md text-xs font-medium transition-all ${
-                micActive
-                  ? "bg-slate-950/70 text-slate-200 hover:bg-slate-800 border border-white/10"
-                  : "bg-rose-500/80 text-white hover:bg-rose-600"
-              }`}
-              title={micActive ? "Mute microphone" : "Unmute microphone"}
-            >
-              {micActive ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
-            </button>
-          </div>
-
-          <div className="text-[11px] text-slate-400 bg-slate-950/60 px-2 py-1 rounded-md backdrop-blur-sm border border-white/5">
-            Local preview only
-          </div>
+          ) : null}
         </div>
       </div>
-    </div>
+
+      <div className="flex items-center justify-between gap-2 px-1 pt-2">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleCamera}
+            aria-pressed={!cameraActive}
+            className={`flex h-11 w-11 items-center justify-center rounded-xl border transition-[transform,background-color,border-color,color] duration-150 ease-out active:scale-[0.94] ${
+              cameraActive
+                ? "border-white/10 bg-white/10 text-white hover:bg-white/15"
+                : "border-rose-300/20 bg-rose-400/15 text-rose-200"
+            }`}
+            aria-label={cameraActive ? "Turn camera off" : "Turn camera on"}
+          >
+            {cameraActive ? <Camera className="h-4 w-4" /> : <CameraOff className="h-4 w-4" />}
+          </button>
+
+          <button
+            type="button"
+            onClick={toggleMic}
+            aria-pressed={!micActive}
+            className={`flex h-11 w-11 items-center justify-center rounded-xl border transition-[transform,background-color,border-color,color] duration-150 ease-out active:scale-[0.94] ${
+              micActive
+                ? "border-white/10 bg-white/10 text-white hover:bg-white/15"
+                : "border-rose-300/20 bg-rose-400/15 text-rose-200"
+            }`}
+            aria-label={micActive ? "Mute preview microphone" : "Unmute preview microphone"}
+          >
+            {micActive ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
+          </button>
+        </div>
+
+        <div className="flex items-center gap-1.5 text-[9px] font-semibold text-slate-400">
+          <ShieldCheck className="h-3.5 w-3.5 text-emerald-300" aria-hidden="true" />
+          Local preview
+        </div>
+      </div>
+    </section>
   );
 }
