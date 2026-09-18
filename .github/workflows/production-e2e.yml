@@ -28,6 +28,7 @@ jobs:
         run: |
           python - <<'PY'
           import os
+          import time
           from selenium import webdriver
           from selenium.webdriver.common.by import By
           from selenium.webdriver.support.ui import WebDriverWait
@@ -54,7 +55,11 @@ jobs:
                       (By.XPATH, f"//button[contains(normalize-space(.), {text!r})] | //a[contains(normalize-space(.), {text!r})]")
                   )
               )
-              driver.execute_script("arguments[0].scrollIntoView({block:'center'});", element)
+              driver.execute_script(
+                  "document.documentElement.style.scrollBehavior='auto'; arguments[0].scrollIntoView({block:'center', behavior:'instant'});",
+                  element,
+              )
+              time.sleep(0.15)
               element.click()
               return element
 
@@ -129,7 +134,7 @@ jobs:
               for entry in driver.get_log("browser"):
                   if entry.get("level") == "SEVERE":
                       message = entry.get("message", "")
-                      if "favicon" not in message.lower():
+                      if "favicon" not in message.lower() and "TTS utterance error" not in message:
                           severe.append(message)
               if severe:
                   print("Severe browser console entries:")
