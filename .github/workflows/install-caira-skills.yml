@@ -1,0 +1,74 @@
+name: Install CAIRA Frontend Skills
+
+on:
+  push:
+    branches:
+      - redesign/hallium-v4-interactive
+    paths:
+      - .github/workflows/install-caira-skills.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DISABLE_TELEMETRY: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: redesign/hallium-v4-interactive
+          fetch-depth: 0
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Emil Kowalski skills
+        run: npx --yes skills@latest add emilkowalski/skills --skill '*' --agent claude-code --copy -y
+
+      - name: Install Anthropic skills
+        run: npx --yes skills@latest add anthropics/skills --skill '*' --agent claude-code --copy -y
+
+      - name: Install UI UX Pro Max
+        run: npx --yes ui-ux-pro-max-cli@latest init --ai claude
+
+      - name: Install Material 3
+        run: npx --yes skills@latest add hamen/material-3-skill --skill material-3 --agent claude-code --copy -y
+
+      - name: Install Karpathy skills
+        run: npx --yes skills@latest add multica-ai/andrej-karpathy-skills --skill '*' --agent claude-code --copy -y
+
+      - name: Install Animate skill
+        run: npx --yes skills@latest add delphi-ai/animate-skill --skill animate --agent claude-code --copy -y
+
+      - name: Install Design Motion Principles
+        run: npx --yes skills@latest add kylezantos/design-motion-principles --skill '*' --agent claude-code --copy -y
+
+      - name: Install Design Engineering
+        run: npx --yes skills@latest add AgentsORG/design-engineering --skill '*' --agent claude-code --copy -y
+
+      - name: Verify installed skills
+        run: |
+          echo '=== Claude Code skill folders ==='
+          find .claude/skills -maxdepth 2 -name SKILL.md -print | sort
+          echo '=== skills CLI view ==='
+          npx --yes skills@latest list --agent claude-code || true
+
+      - name: Commit installed project skills
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .claude .agents skills-lock.json 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No new skill files to commit."
+            exit 0
+          fi
+          git commit -m "chore(skills): install frontend design and engineering skill pack"
+          git push origin HEAD:redesign/hallium-v4-interactive
