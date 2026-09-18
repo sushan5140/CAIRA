@@ -6,6 +6,9 @@ on:
       - redesign/hallium-v4-interactive
     paths:
       - .github/workflows/redesign-visual-check.yml
+      - app/**/*.tsx
+      - app/**/*.css
+      - components/**/*.tsx
   workflow_dispatch:
 
 permissions:
