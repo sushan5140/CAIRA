@@ -132,8 +132,8 @@
 
   .caira-primary-button {
     @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-bold text-white;
-    background: linear-gradient(135deg, #6460df 0%, #5652ce 72%, #4a8f79 128%);
-    box-shadow: 0 12px 28px -16px rgba(91, 87, 217, 0.64);
+    background: #202941;
+    box-shadow: 0 12px 28px -18px rgba(32, 41, 65, 0.5);
     transition:
       transform var(--duration-press) var(--ease-ui),
       box-shadow var(--duration-fast) var(--ease-ui),
@@ -142,8 +142,9 @@
 
   .caira-primary-button:hover {
     transform: translateY(-1px);
-    box-shadow: 0 16px 34px -17px rgba(91, 87, 217, 0.72);
-    filter: saturate(1.04);
+    background: #2a3552;
+    box-shadow: 0 16px 34px -18px rgba(32, 41, 65, 0.56);
+    filter: none;
   }
 
   .caira-primary-button:active {
