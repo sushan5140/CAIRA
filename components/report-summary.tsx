@@ -66,7 +66,7 @@ export function ReportSummary({ interview }: ReportSummaryProps) {
     <div className="mx-auto max-w-[1300px] pb-14 print-page">
       <header className="no-print mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.17em] text-indigo-600">
+          <div className="flex items-center gap-2 text-xs font-bold text-indigo-600">
             <Sparkles className="h-3.5 w-3.5" /> Interview Report: {interview.job_role}
           </div>
           <h1 className="mt-2 text-3xl font-extrabold tracking-[-0.05em] text-[#1c2437] sm:text-4xl">Your readiness map.</h1>
@@ -87,7 +87,7 @@ export function ReportSummary({ interview }: ReportSummaryProps) {
       <section className="caira-surface overflow-hidden print-card">
         <div className="grid gap-0 lg:grid-cols-[300px_1fr]">
           <div className="bg-[#202941] p-6 text-white sm:p-7">
-            <div className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-indigo-200">Overall Readiness Score</div>
+            <div className="text-xs font-bold text-indigo-200">Overall Readiness Score</div>
             <div className="mt-4 flex items-end gap-2">
               <span className="text-6xl font-extrabold tracking-[-0.08em]">{overallScore}</span>
               <span className="mb-1 text-sm font-bold text-slate-400">/100</span>
@@ -96,13 +96,13 @@ export function ReportSummary({ interview }: ReportSummaryProps) {
               <div className="h-full rounded-full bg-gradient-to-r from-indigo-300 via-white to-emerald-300" style={{ width: `${Math.max(2, overallScore)}%` }} />
             </div>
             <div className="mt-6 rounded-[20px] border border-white/10 bg-white/5 p-4">
-              <div className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-400">Readiness note</div>
+              <div className="text-[11px] font-bold text-slate-400">Readiness note</div>
               <p className="mt-2 text-sm font-bold leading-6 text-white">{report?.recommendation || "Use the breakdown to choose the next practice focus."}</p>
             </div>
           </div>
 
           <div className="p-6 sm:p-8">
-            <div className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">Session synthesis</div>
+            <div className="text-xs font-bold text-slate-400">Session synthesis</div>
             <h2 className="mt-3 max-w-3xl text-2xl font-extrabold leading-8 tracking-[-0.04em] text-[#1c2437]">{report?.summary || "Your report combines the strongest evidence, gaps, and turn-level feedback from the practice."}</h2>
 
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -162,7 +162,7 @@ export function ReportSummary({ interview }: ReportSummaryProps) {
         {tab === "skills" ? (
           <div className="grid gap-5 lg:grid-cols-[320px_1fr]">
             <aside className="caira-surface p-4 print-card">
-              <div className="px-2 pb-3 text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">Competency map</div>
+              <div className="px-2 pb-3 text-xs font-bold text-slate-500">Competency map</div>
               <div className="space-y-2">
                 {skillBreakdown.map((item, index) => (
                   <button
@@ -183,13 +183,13 @@ export function ReportSummary({ interview }: ReportSummaryProps) {
                 <>
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                      <div className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-indigo-600">Selected competency</div>
+                      <div className="text-xs font-bold text-indigo-600">Selected competency</div>
                       <h3 className="mt-2 text-3xl font-extrabold tracking-[-0.05em] text-[#1c2437]">{activeSkill.skill}</h3>
                     </div>
                     <div className="text-4xl font-extrabold tracking-[-0.06em] text-indigo-700">{activeSkill.score}<span className="text-sm text-slate-400">%</span></div>
                   </div>
                   <div className="mt-7 rounded-[24px] border border-stone-200 bg-[#fbfaf7] p-5">
-                    <div className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-400">CAIRA&apos;s read</div>
+                    <div className="text-[11px] font-bold text-slate-400">CAIRA&apos;s read</div>
                     <p className="mt-2 text-sm font-semibold leading-7 text-slate-700">{activeSkill.notes}</p>
                   </div>
                 </>
@@ -203,7 +203,7 @@ export function ReportSummary({ interview }: ReportSummaryProps) {
         {tab === "turns" ? (
           <div className="grid gap-5 lg:grid-cols-[250px_1fr]">
             <aside className="caira-surface p-4 print-card">
-              <div className="px-2 pb-3 text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">Turn navigator</div>
+              <div className="px-2 pb-3 text-xs font-bold text-slate-500">Turn navigator</div>
               <div className="space-y-2">
                 {questions.map((question, index) => (
                   <button
@@ -227,14 +227,14 @@ export function ReportSummary({ interview }: ReportSummaryProps) {
                     <ScoreBadge score={activeQuestion.score ?? 0} maxScore={10} size="md" />
                   </div>
                   <h3 className="mt-5 text-xl font-extrabold leading-8 tracking-[-0.035em] text-[#1c2437]">“{activeQuestion.question_text}”</h3>
-                  <div className="mt-5 rounded-[22px] border border-stone-200 bg-[#fbfaf7] p-4"><div className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-400">Your answer</div><p className="mt-2 text-sm leading-7 text-slate-700">{activeQuestion.answer_text || "No response recorded."}</p></div>
+                  <div className="mt-5 rounded-[22px] border border-stone-200 bg-[#fbfaf7] p-4"><div className="text-[11px] font-bold text-slate-400">Your answer</div><p className="mt-2 text-sm leading-7 text-slate-700">{activeQuestion.answer_text || "No response recorded."}</p></div>
                   {activeQuestion.evaluation ? (
                     <div className="mt-4 grid gap-3 md:grid-cols-2">
                       <TurnNotes title="What worked" items={activeQuestion.evaluation.strengths || []} tone="jade" />
                       <TurnNotes title="What was missing" items={activeQuestion.evaluation.gaps || []} tone="amber" />
                     </div>
                   ) : null}
-                  {activeQuestion.evaluation?.feedback ? <div className="mt-4 rounded-[22px] border border-indigo-100 bg-indigo-50/70 p-4"><div className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-indigo-700">Coach note</div><p className="mt-2 text-sm font-semibold leading-6 text-indigo-950">{activeQuestion.evaluation.feedback}</p></div> : null}
+                  {activeQuestion.evaluation?.feedback ? <div className="mt-4 rounded-[22px] border border-indigo-100 bg-indigo-50/70 p-4"><div className="text-[11px] font-bold text-indigo-700">Coach note</div><p className="mt-2 text-sm font-semibold leading-6 text-indigo-950">{activeQuestion.evaluation.feedback}</p></div> : null}
                 </>
               ) : (
                 <div className="py-16 text-center text-sm font-semibold text-slate-500">No turn data is available.</div>
@@ -258,7 +258,7 @@ function TabButton({ active, onClick, icon: Icon, label }: { active: boolean; on
 
 function SignalCard({ icon: Icon, label, value, tone }: { icon: typeof Award; label: string; value: string; tone: "jade" | "indigo" }) {
   const style = tone === "jade" ? "border-emerald-100 bg-emerald-50/65 text-emerald-900" : "border-indigo-100 bg-indigo-50/65 text-indigo-950";
-  return <div className={`rounded-[22px] border p-4 ${style}`}><Icon className="h-4 w-4" /><div className="mt-3 text-[10px] font-extrabold uppercase tracking-[0.13em] opacity-60">{label}</div><p className="mt-1 text-xs font-extrabold leading-5">{value}</p></div>;
+  return <div className={`rounded-[22px] border p-4 ${style}`}><Icon className="h-4 w-4" /><div className="mt-3 text-[11px] font-bold opacity-60">{label}</div><p className="mt-1 text-xs font-extrabold leading-5">{value}</p></div>;
 }
 
 function TurnNotes({ title, items, tone }: { title: string; items: string[]; tone: "jade" | "amber" }) {
