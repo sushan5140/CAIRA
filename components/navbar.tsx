@@ -161,7 +161,8 @@ export function Navbar() {
 
       <nav
         aria-label="Mobile"
-        className="no-print fixed inset-x-3 bottom-3 z-50 grid grid-cols-3 rounded-[24px] border border-stone-200 bg-white/96 p-1.5 shadow-[0_18px_42px_-20px_rgba(31,41,64,0.48)] backdrop-blur-xl md:hidden"
+        className="no-print fixed inset-x-3 z-50 grid grid-cols-3 rounded-[24px] border border-stone-200 bg-white/96 p-1.5 shadow-[0_18px_42px_-20px_rgba(31,41,64,0.48)] backdrop-blur-xl md:hidden"
+        style={{ bottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
       >
         {navItems.map((item) => {
           const Icon = item.icon;
