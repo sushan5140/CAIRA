@@ -73,7 +73,7 @@ export default function DashboardPage() {
     <div className="mx-auto max-w-[1450px] px-4 py-7 sm:px-6 lg:px-8 lg:py-10">
       <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-indigo-600">Review room</div>
+          <div className="text-xs font-bold text-indigo-600">Review room</div>
           <h1 className="mt-2 text-3xl font-extrabold tracking-[-0.05em] text-[#1c2437] sm:text-4xl">Your interview history should teach you something.</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Open a session, continue an unfinished practice, or use the pattern across reports to choose what to work on next.</p>
         </div>
@@ -138,7 +138,7 @@ export default function DashboardPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="truncate text-sm font-extrabold tracking-[-0.02em] text-[#1c2437] group-hover:text-indigo-700">{intv.job_role}</span>
-                          <span className={`rounded-full px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-[0.1em] ${isDone ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{isDone ? "Completed" : "In progress"}</span>
+                          <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${isDone ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{isDone ? "Completed" : "In progress"}</span>
                           {isGuest ? <span className="rounded-full bg-stone-100 px-2.5 py-1 text-[9px] font-bold text-slate-500">This device</span> : null}
                         </div>
                         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-semibold text-slate-400">
@@ -157,7 +157,7 @@ export default function DashboardPage() {
                         {isDone && typeof intv.overall_score === "number" ? (
                           <div className="flex h-12 w-12 flex-col items-center justify-center rounded-2xl border border-indigo-100 bg-indigo-50 text-indigo-700">
                             <span className="text-lg font-extrabold leading-none">{intv.overall_score}</span>
-                            <span className="mt-0.5 text-[8px] font-extrabold uppercase">score</span>
+                            <span className="mt-0.5 text-[10px] font-bold">score</span>
                           </div>
                         ) : null}
                         <div className="flex h-9 w-9 items-center justify-center rounded-full border border-stone-200 bg-white text-slate-400 transition-all group-hover:border-indigo-200 group-hover:bg-indigo-50 group-hover:text-indigo-700">
@@ -174,7 +174,7 @@ export default function DashboardPage() {
 
         <aside className="space-y-4">
           <div className="caira-surface p-5">
-            <div className="flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-500">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
               <Target className="h-3.5 w-3.5 text-indigo-600" /> Next practice focus
             </div>
             {latestCompleted ? (
@@ -192,7 +192,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="rounded-[28px] border border-indigo-100 bg-indigo-50/70 p-5">
-            <div className="flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.16em] text-indigo-700"><BarChart3 className="h-3.5 w-3.5" /> Review loop</div>
+            <div className="flex items-center gap-2 text-xs font-bold text-indigo-700"><BarChart3 className="h-3.5 w-3.5" /> Review loop</div>
             <div className="mt-4 space-y-3">
               {["Practice a real role", "Read the turn feedback", "Choose one gap", "Run a harder session"].map((item, index) => (
                 <div key={item} className="flex items-center gap-3">
@@ -225,7 +225,7 @@ function StatCard({
   return (
     <div className="caira-surface p-5">
       <div className="flex items-center justify-between gap-3">
-        <div className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-400">{label}</div>
+        <div className="text-[11px] font-bold text-slate-400">{label}</div>
         <div className={`flex h-9 w-9 items-center justify-center rounded-2xl ${toneClass}`}><Icon className="h-4 w-4" /></div>
       </div>
       <div className="mt-4 text-3xl font-extrabold tracking-[-0.05em] text-[#1c2437]">{value}</div>
