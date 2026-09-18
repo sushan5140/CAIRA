@@ -60,12 +60,16 @@ jobs:
           find .claude/skills -maxdepth 2 -name SKILL.md -print | sort
           echo '=== skills CLI view ==='
           npx --yes skills@latest list --agent claude-code || true
+          echo '=== git ignored status ==='
+          git status --short --ignored .claude .agents skills-lock.json || true
 
       - name: Commit installed project skills
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .claude .agents skills-lock.json 2>/dev/null || true
+          git add -f .claude/skills
+          if [ -f skills-lock.json ]; then git add -f skills-lock.json; fi
+          if [ -d .agents ]; then git add -f .agents; fi
           if git diff --cached --quiet; then
             echo "No new skill files to commit."
             exit 0
