@@ -258,7 +258,7 @@ export default function InterviewRoomPage() {
       <div className="grid min-h-[calc(100dvh-116px)] overflow-hidden rounded-[30px] border border-stone-200 bg-white/75 shadow-[0_30px_80px_-52px_rgba(31,41,64,0.42)] xl:grid-cols-[230px_minmax(560px,1fr)_320px]">
         <aside className="hidden border-r border-stone-200 bg-[#202941] p-5 text-white xl:block">
           <div className="sticky top-[96px]">
-            <div className="flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.17em] text-slate-400">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
               <span className="caira-live-dot h-2 w-2 rounded-full bg-emerald-400" /> Interview rail
             </div>
             <div className="mt-3 text-sm font-extrabold leading-5 text-white">{interview?.job_role}</div>
@@ -297,7 +297,7 @@ export default function InterviewRoomPage() {
           <div className="mx-auto max-w-[840px]">
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
               <div>
-                <div className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-indigo-600">Live interview</div>
+                <div className="text-xs font-bold text-indigo-600">Live interview</div>
                 <h1 className="mt-1 text-xl font-extrabold tracking-[-0.035em] text-[#1c2437] sm:text-2xl">Stay in the conversation.</h1>
               </div>
               <div className="flex items-center gap-2">
@@ -339,7 +339,7 @@ export default function InterviewRoomPage() {
 
         <aside className="hidden bg-[#fbfaf7] p-6 xl:block">
           <div className="sticky top-[96px]">
-            <div className="flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-500">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
               <Brain className="h-3.5 w-3.5 text-indigo-600" /> Adaptive coach
             </div>
             <h2 className="mt-3 text-xl font-extrabold tracking-[-0.035em] text-[#1c2437]">Reading the interview as it changes.</h2>
@@ -350,28 +350,28 @@ export default function InterviewRoomPage() {
             </div>
 
             <div className="mt-5 rounded-[22px] border border-indigo-100 bg-indigo-50/70 p-4">
-              <div className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-indigo-700">Current target</div>
+              <div className="text-[11px] font-bold text-indigo-700">Current target</div>
               <p className="mt-2 text-sm font-extrabold leading-5 text-indigo-950">{currentQuestion?.targets_skill || "Role-specific reasoning"}</p>
               <p className="mt-2 text-[11px] leading-5 text-indigo-900/70">The next follow-up is generated from what you say here, not from a preloaded question list.</p>
             </div>
 
             {currentQuestion?.evaluation ? (
               <div className="mt-4 rounded-[22px] border border-emerald-100 bg-emerald-50/70 p-4 caira-motion-in">
-                <div className="flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-emerald-700">
+                <div className="flex items-center gap-2 text-[11px] font-bold text-emerald-700">
                   <Check className="h-3.5 w-3.5" /> Turn signal
                 </div>
                 <p className="mt-2 text-xs font-semibold leading-5 text-emerald-950">{currentQuestion.evaluation.feedback}</p>
               </div>
             ) : (
               <div className="mt-4 rounded-[22px] border border-stone-200 bg-white p-4">
-                <div className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-400">Before you answer</div>
+                <div className="text-[11px] font-bold text-slate-400">Before you answer</div>
                 <p className="mt-2 text-xs font-semibold leading-5 text-slate-600">Anchor your response in one concrete example. Explain the decision, the trade-off, and the result.</p>
               </div>
             )}
 
             {interview?.extracted_skills?.required_skills?.length ? (
               <div className="mt-5">
-                <div className="mb-2 flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-400">
+                <div className="mb-2 flex items-center gap-2 text-[11px] font-bold text-slate-400">
                   <Layers className="h-3.5 w-3.5" /> Competency map
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -411,7 +411,7 @@ function MetricCard({
     <div className="rounded-2xl border border-stone-200 bg-white p-3.5">
       <Icon className="h-3.5 w-3.5 text-indigo-600" />
       <div className="mt-3 text-lg font-extrabold tracking-[-0.04em] text-[#1c2437]">{value}</div>
-      <div className="mt-0.5 text-[9px] font-extrabold uppercase tracking-[0.12em] text-slate-400">{label}</div>
+      <div className="mt-0.5 text-[10px] font-bold text-slate-400">{label}</div>
     </div>
   );
 }
