@@ -39,7 +39,7 @@ export function QuestionCard({
       <div className="relative">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <div className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">
+            <div className="text-xs font-bold text-slate-500">
               Interview prompt
             </div>
             <div className="mt-2 flex items-center gap-2">
